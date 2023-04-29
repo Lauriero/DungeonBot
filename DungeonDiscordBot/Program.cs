@@ -25,7 +25,7 @@ namespace DungeonDiscordBot
             
             await provider.GetService<IServicesAggregator>()!.Init(provider);
             
-            Console.ReadKey();
+            Console.Read();
         }
 
         private static IServiceProvider CreateServiceProvider(string[] args)
