@@ -9,6 +9,7 @@ using DungeonDiscordBot.Controllers.Abstraction;
 using DungeonDiscordBot.Model;
 
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 
 using Serilog;
 
@@ -18,37 +19,10 @@ namespace DungeonDiscordBot
     {
         public static async Task Main(string[] args)
         {
-            IServiceProvider provider = CreateServiceProvider(args);
-            foreach (MusicProvider musicProvider in MusicProvider.List) {
-                await musicProvider.Value.Init();
-            }
-            
-            await provider.GetService<IServicesAggregator>()!.Init(provider);
-            
-            Console.Read();
+            await new HostBuilder()
+                .ConfigureServices((hostContext, services) => {
+                    services.AddHostedService<BotHostedService>();
+                }).RunConsoleAsync();
         }
-
-        private static IServiceProvider CreateServiceProvider(string[] args)
-        {
-            ServiceCollection serviceCollection = new ServiceCollection();
-            serviceCollection.AddSingleton<ILogger>(InitLogger());
-            serviceCollection
-                .AddSingleton<InteractionService>()
-                .AddSingleton<DiscordSocketClient>()
-                .AddSingleton<IDiscordAudioController, DiscordAudioController>()
-                .AddSingleton<IDiscordBotController, DiscordBotController>()
-
-                .AddSingleton<IVkApiController, VkApiController>()
-                .AddSingleton<IServicesAggregator, ServicesAggregator>();
-
-            return serviceCollection.BuildServiceProvider();
-        }
-
-        private static ILogger InitLogger() =>
-            new LoggerConfiguration()
-                .MinimumLevel.Debug()
-                .Enrich.FromLogContext()
-                .WriteTo.Console(outputTemplate: "[{Timestamp: yyyy - MM - dd HH: mm: ss.fff zzz}] [{Level}] ({SourceContext}) {Message}{NewLine}{Exception}")
-                .CreateLogger();
     }
 }
