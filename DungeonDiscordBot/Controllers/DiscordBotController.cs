@@ -72,9 +72,9 @@ namespace DungeonDiscordBot.Controllers
             _logger.Information("Discord service initialized");
         }
 
-        public Task HandleInteractionException(Exception exception)
+        public async Task HandleInteractionException(Exception exception)
         {
-            return Task.Factory.StartNew(() => throw exception);
+            _logger.Error(exception, "Interaction was executed with an exception");
         }
 
         private async Task ClientOnButtonExecuted(SocketMessageComponent component)
