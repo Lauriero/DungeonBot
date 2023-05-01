@@ -87,8 +87,12 @@ public class MusicModule : InteractionModuleBase<SocketInteractionContext>
     [SlashCommand("stop", "Stops playing the songs queue", runMode: RunMode.Async)]
     public async Task StopAsync()
     {
-        await _aggregator.DiscordAudio.StopQueueAsync(Context.Guild.Id);
-        await RespondAsync("Stopped");
+        await OnExceptionWrapper(async () => {
+            throw new ArgumentException("Test");
+            
+            await _aggregator.DiscordAudio.StopQueueAsync(Context.Guild.Id);
+            await RespondAsync("Stopped");
+        });
     }
 
     [SlashCommand("queue", "Shows the list of songs that are currently playing", runMode: RunMode.Async)]
@@ -106,6 +110,15 @@ public class MusicModule : InteractionModuleBase<SocketInteractionContext>
         await DeferAsync();
         _aggregator.DiscordAudio.ShuffleQueue(Context.Guild.Id);
         await ModifyOriginalResponseAsync(m => m.Content = "Queue is shuffled");
+    }
+
+    private async Task OnExceptionWrapper(Func<Task> inner)
+    {
+        try {
+            await inner();
+        } catch (Exception e) {
+            await _aggregator.DiscordBot.HandleInteractionException(e);
+        }
     }
 
     private SocketVoiceChannel? GetVoiceChannelWithCurrentUser()

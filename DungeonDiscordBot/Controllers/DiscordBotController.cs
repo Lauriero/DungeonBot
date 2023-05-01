@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reactive.Concurrency;
 using System.Reflection;
 using System.Threading.Tasks;
 
@@ -10,9 +11,11 @@ using Discord.WebSocket;
 
 using DungeonDiscordBot.ButtonHandlers;
 using DungeonDiscordBot.Controllers.Abstraction;
+using DungeonDiscordBot.Exceptions;
 using DungeonDiscordBot.Model;
 using DungeonDiscordBot.MusicProvidersControllers;
 using DungeonDiscordBot.TypeConverters;
+using DungeonDiscordBot.Utilities;
 
 using Serilog;
 
@@ -38,16 +41,20 @@ namespace DungeonDiscordBot.Controllers
             _aggregator = aggregator;
             
             _logger.Information("Initializing Discord service...");
-            
-            _client.InteractionCreated += (interaction) => 
-                _interactions.ExecuteCommandAsync(new SocketInteractionContext(_client, interaction), _aggregator.ServiceProvider);
+
+            _client.InteractionCreated += async interaction => {
+                IResult result = await _interactions.ExecuteCommandAsync(new SocketInteractionContext(_client, interaction),
+                    _aggregator.ServiceProvider);;
+
+                if (result.IsSuccess) {
+                    return;
+                }
+
+                throw new InteractionCommandException(interaction, (InteractionCommandError)result.Error!, result.ErrorReason);
+            };
 
             _client.ButtonExecuted += ClientOnButtonExecuted;
 
-                // _client.AutocompleteExecuted += (interaction) =>
-            //     _interactions.ExecuteCommandAsync(new InteractionContext(_client, interaction, interaction.Channel),
-            //         _aggregator.ServiceProvider);
-            
             _client.Ready += async () => {
                 await _interactions.RegisterCommandsGloballyAsync();
                 Console.WriteLine("Bot is ready.");
@@ -63,6 +70,11 @@ namespace DungeonDiscordBot.Controllers
             
 
             _logger.Information("Discord service initialized");
+        }
+
+        public Task HandleInteractionException(Exception exception)
+        {
+            return Task.Factory.StartNew(() => throw exception);
         }
 
         private async Task ClientOnButtonExecuted(SocketMessageComponent component)
