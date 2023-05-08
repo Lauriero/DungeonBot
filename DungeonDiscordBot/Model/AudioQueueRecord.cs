@@ -1,6 +1,4 @@
-﻿using System;
-
-namespace DungeonDiscordBot.Model;
+﻿namespace DungeonDiscordBot.Model;
 
 public class AudioQueueRecord
 {

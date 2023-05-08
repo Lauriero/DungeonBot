@@ -1,8 +1,6 @@
 ﻿using Discord.Interactions;
 using Discord.WebSocket;
 
-using Microsoft.VisualBasic;
-
 namespace DungeonDiscordBot.Exceptions;
 
 public class InteractionCommandException : Exception

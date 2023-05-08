@@ -421,3 +421,5 @@ fabric.properties
 .idea/caches/build_file_checksums.ser
 
 upgrade-assistant.clef
+
+**/appsettings.Development.json

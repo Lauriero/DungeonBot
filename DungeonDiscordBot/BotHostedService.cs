@@ -4,6 +4,7 @@ using Discord.WebSocket;
 using DungeonDiscordBot.Controllers;
 using DungeonDiscordBot.Controllers.Abstraction;
 using DungeonDiscordBot.Model;
+using DungeonDiscordBot.MusicProvidersControllers;
 
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -14,41 +15,35 @@ namespace DungeonDiscordBot;
 
 public class BotHostedService : IHostedService, IDisposable
 {
+    private IServiceProvider _serviceProvider;
+    public BotHostedService(IServiceProvider serviceProvider)
+    {
+        _serviceProvider = serviceProvider;
+    }
+    
     public async Task StartAsync(CancellationToken cancellationToken)
     {
-        IServiceProvider provider = CreateServiceProvider();
         foreach (MusicProvider musicProvider in MusicProvider.List) {
-            await musicProvider.Value.Init();
+            MusicProviderControllerContainer container = (MusicProviderControllerContainer) musicProvider.Value;
+            container.Instance = (BaseMusicProviderController)_serviceProvider.GetRequiredService(container.ProviderType);
+            await container.InitializeAsync();
         }
-        
-        await provider.GetService<IServicesAggregator>()!.Init(provider);
+
+        foreach (IRequireInitiationService service in _serviceProvider
+                     .GetServices<IRequireInitiationService>()
+                     .OrderBy(s => s.InitializationPriority)) {
+            await service.InitializeAsync();
+        }
     }
 
-    public async Task StopAsync(CancellationToken cancellationToken) { }
-
-    private static IServiceProvider CreateServiceProvider()
-        {
-            ServiceCollection serviceCollection = new ServiceCollection();
-            serviceCollection.AddSingleton<ILogger>(InitLogger());
-            serviceCollection
-                .AddSingleton<InteractionService>()
-                .AddSingleton<DiscordSocketClient>()
-                .AddSingleton<IDiscordAudioController, DiscordAudioController>()
-                .AddSingleton<IDiscordBotController, DiscordBotController>()
-
-                .AddSingleton<IVkApiController, VkApiController>()
-                .AddSingleton<IServicesAggregator, ServicesAggregator>();
-
-            return serviceCollection.BuildServiceProvider();
+    public async Task StopAsync(CancellationToken cancellationToken)
+    {
+        foreach (IAsyncDisposable service in _serviceProvider
+                     .GetServices<IAsyncDisposable>()) {
+            await service.DisposeAsync();
         }
+    }
 
-        private static ILogger InitLogger() =>
-            new LoggerConfiguration()
-                .MinimumLevel.Debug()
-                .Enrich.FromLogContext()
-                .WriteTo.Console(outputTemplate: "[{Timestamp: yyyy - MM - dd HH: mm: ss.fff zzz}] [{Level}] ({SourceContext}) {Message}{NewLine}{Exception}")
-                .CreateLogger();
-    
     public void Dispose()
     {
     }

@@ -1,31 +1,29 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Threading.Tasks;
-
+﻿using DungeonDiscordBot.Controllers.Abstraction;
 using DungeonDiscordBot.Model;
 
 namespace DungeonDiscordBot.MusicProvidersControllers;
 
-public abstract class BaseMusicProviderController : IComparable<BaseMusicProviderController>, IEquatable<BaseMusicProviderController>
+public abstract class BaseMusicProviderController : 
+    IComparable<BaseMusicProviderController>, 
+    IEquatable<BaseMusicProviderController>,
+    IRequireInitiationService
 {
     public event Action<int>? AudiosProcessingStarted;
     public event Action<int, int>? AudiosProcessingProgressed;
     public event Action<int>? AudiosProcessed;
     
     public abstract string LinksDomainName { get; }
-    
-    private Type _providerType;
 
-    protected BaseMusicProviderController()
+    public int InitializationPriority => 0;
+    
+    public Type ProviderType { get; protected set; }
+    
+    protected BaseMusicProviderController(Type? destinationType = null)
     {
-        _providerType = this.GetType();
+        ProviderType = destinationType ?? this.GetType();
     }
 
-    /// <summary>
-    /// Initializes the controller.
-    /// </summary>
-    /// <returns></returns>
-    public abstract Task Init();
+    public abstract Task InitializeAsync();
 
     /// <summary>
     /// Gets audios by a url.
@@ -38,7 +36,7 @@ public abstract class BaseMusicProviderController : IComparable<BaseMusicProvide
             return 1;
         }
 
-        return this._providerType != other._providerType ? 1 : 0;
+        return this.ProviderType != other.ProviderType ? 1 : 0;
     }
 
     public bool Equals(BaseMusicProviderController? other)
@@ -47,7 +45,7 @@ public abstract class BaseMusicProviderController : IComparable<BaseMusicProvide
             return false;
         }
 
-        return this._providerType != other._providerType;
+        return this.ProviderType != other.ProviderType;
     }
 
     protected void OnAudiosProcessingStarted(int audiosToProcess)
@@ -64,4 +62,5 @@ public abstract class BaseMusicProviderController : IComparable<BaseMusicProvide
     {
         AudiosProcessed?.Invoke(audiosAdded);
     }
+
 }

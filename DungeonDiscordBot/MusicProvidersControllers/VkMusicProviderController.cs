@@ -1,12 +1,10 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text.RegularExpressions;
-using System.Threading.Tasks;
+﻿using System.Text.RegularExpressions;
 
 using DungeonDiscordBot.Model;
 
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
+using Microsoft.Extensions.Logging;
 
 using VkNet;
 using VkNet.Abstractions;
@@ -21,19 +19,31 @@ namespace DungeonDiscordBot.MusicProvidersControllers;
 public class VkMusicProviderController : BaseMusicProviderController
 {
     public override string LinksDomainName => "vk.com";
-    
+
     private IVkApi _api = null!;
-    
-    public override async Task Init()
+    private readonly ILogger<VkMusicProviderController> _logger;
+    private readonly AppSettings _settings;
+
+    public VkMusicProviderController(IOptions<AppSettings> settings, ILogger<VkMusicProviderController> logger)
     {
+        _logger = logger;
+        _settings = settings.Value;
+    }
+    
+    public override async Task InitializeAsync()
+    {
+        _logger.LogInformation("VK Music provider initialization started");
+
         ServiceCollection services = new ServiceCollection();
         services.AddAudioBypass();
         
         _api = new VkApi(services);   
-        await _api.AuthorizeAsync(new ApiAuthParams {
-            Login = ApiCredentials.VK_LOGIN,
-            Password = ApiCredentials.VK_PASSWORD,
-        });
+        // await _api.AuthorizeAsync(new ApiAuthParams {
+        //     Login = _settings.VKLogin,
+        //     Password = _settings.VKPassword,
+        // });
+        //
+        _logger.LogInformation("VK Music provider initialized");
     }
 
     public override async Task<IEnumerable<AudioQueueRecord>> GetAudiosFromLink(Uri link)
@@ -41,69 +51,83 @@ public class VkMusicProviderController : BaseMusicProviderController
         List<AudioQueueRecord> records = new List<AudioQueueRecord>();
         
         string url = link.AbsoluteUri;
-        if (url.Contains("playlist")) {
-            Regex regex = new Regex(@".+playlist/(\d+)_(\d+)(_(.+))?");
-            Match match = regex.Match(url);
+        Regex songRegex = new Regex(@".+audio(\d+)_(\d+)_(.+)");
+        Regex playlistRegex = new Regex(@".+playlist/([\d-]+)_(\d+)(_(.+))?");
+        Regex sovaPlaylistRegex = new Regex(@".+audio_playlist([\d-]+)_(\d+)/(_(.+))?");
 
-            int userId = Convert.ToInt32(match.Groups[1].Value);
-            int playlistId = Convert.ToInt32(match.Groups[2].Value);
+        Match songMatch = songRegex.Match(url);
+        Match playlistMatch = playlistRegex.Match(url);
+        Match sovaPlaylistMatch = sovaPlaylistRegex.Match(url);
 
-            string accessToken = "";
-            if (match.Groups.Count == 5) {
-                accessToken = match.Groups[4].Value;
-            }
+        long userId;
+        long? playlistId;
+        string accessToken;
+        IEnumerable<Audio> audios;
+        if (songMatch.Success) {
+            userId = Convert.ToInt64(songMatch.Groups[1].Value);
+            long audioId = Convert.ToInt64(songMatch.Groups[2].Value);
+            accessToken = songMatch.Groups[3].Value;
             
-            VkCollection<Audio> audios = await _api.Audio.GetAsync(new AudioGetParams {
-                PlaylistId = playlistId,
-                OwnerId = userId,
-                AccessKey = accessToken
-            });
-
-            OnAudiosProcessingStarted(audios.Count);
-            int addedCount = 0;
-            for (int i = 0; i < audios.Count; i++) {
-                Audio audio = audios[i];
-                if (audio.Url is null) {
-                    continue;
-                }
-                
-                records.Add(new AudioQueueRecord(audio.Artist, audio.Title, audio.Url, audio.Album?.Thumb.Photo135));
-                addedCount++;
-            }
-            
-            OnAudiosProcessed(addedCount);
-        } else if (url.Contains("audio")) {
-            Regex regex = new Regex(@".+audio(\d+)_(\d+)_(.+)");
-            Match match = regex.Match(url);
-
-            long userId = Convert.ToInt64(match.Groups[1].Value);
-            long audioId = Convert.ToInt64(match.Groups[2].Value);
-            string accessToken = match.Groups[3].Value;
-            
-            VkCollection<Audio> audios = await _api.Audio.GetAsync(new AudioGetParams {
-                AudioIds = new [] {
-                    audioId
-                },
-                OwnerId = userId,
-                AccessKey = accessToken
-            });
-
-            if (audios.Count == 0) {
-                throw new ArgumentException("Audio not found by this link", nameof(link));
-            }
-            
-            OnAudiosProcessingStarted(1);
-            
-            Audio audio = audios.First();
-            if (audio.Id is null) {
-                OnAudiosProcessed(0);
-                return records;
+            audios = await GetAudio(userId, audioId, accessToken);
+        } else if (playlistMatch.Success) {
+            userId = Convert.ToInt64(playlistMatch.Groups[1].Value);
+            playlistId = Convert.ToInt64(playlistMatch.Groups[2].Value);
+            accessToken = "";
+            if (playlistMatch.Groups.Count == 5) {
+                accessToken = playlistMatch.Groups[4].Value;
             }
 
-            records.Add(new AudioQueueRecord(audio.Artist, audio.Title, audio.Url, audio.Album?.Thumb.Photo135));
-            OnAudiosProcessed(1);
+            audios = await GetAudios(userId, playlistId.Value, accessToken);
+        } else if (sovaPlaylistMatch.Success) {
+            userId = Convert.ToInt64(sovaPlaylistMatch.Groups[1].Value);
+            playlistId = Convert.ToInt64(sovaPlaylistMatch.Groups[2].Value);
+            accessToken = "";
+            if (playlistMatch.Groups.Count == 5) {
+                accessToken = sovaPlaylistMatch.Groups[4].Value;
+            }
+
+            audios = await GetAudios(userId, playlistId.Value, accessToken);
+        } else {
+            throw new ArgumentException("Link is not supported", nameof(url));
         }
 
+        OnAudiosProcessingStarted(audios.Count());
+        int addedCount = 0;
+        for (int i = 0; i < audios.Count(); i++) {
+            Audio audio = audios.ElementAt(i);
+            if (audio.Url is null) {
+                continue;
+            }
+            
+            records.Add(new AudioQueueRecord(audio.Artist, audio.Title, audio.Url, audio.Album?.Thumb.Photo135));
+            addedCount++;
+        }
+        
+        OnAudiosProcessed(addedCount);
         return records;
+    }
+
+    public async Task<IEnumerable<Audio>> GetAudios(long userId, long playlistId, string accessKey)
+    {
+        VkCollection<Audio> audios = await _api.Audio.GetAsync(new AudioGetParams {
+            PlaylistId = playlistId,
+            OwnerId = userId,
+            AccessKey = accessKey
+        });
+
+        return audios;
+    }
+    
+    public async Task<IEnumerable<Audio>> GetAudio(long userId, long audioId, string accessKey)
+    {
+        VkCollection<Audio> audios = await _api.Audio.GetAsync(new AudioGetParams {
+            AudioIds = new [] {
+                audioId
+            },
+            OwnerId = userId,
+            AccessKey = accessKey
+        });
+
+        return audios;
     }
 }

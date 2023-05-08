@@ -1,19 +1,18 @@
-﻿using System;
-using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.Threading.Tasks;
+﻿using System.Collections.Concurrent;
 
 using Discord.Audio;
 using Discord.Interactions;
 using Discord.WebSocket;
 
+using DungeonDiscordBot.Controllers;
 using DungeonDiscordBot.Controllers.Abstraction;
+using DungeonDiscordBot.Exceptions;
 using DungeonDiscordBot.Model;
+using DungeonDiscordBot.Model.Database;
 using DungeonDiscordBot.MusicProvidersControllers;
 using DungeonDiscordBot.Utilities;
 
-
-using Serilog;
+using Microsoft.Extensions.Logging;
 
 namespace DungeonDiscordBot.InteractionModules;
 
@@ -21,13 +20,17 @@ public class MusicModule : InteractionModuleBase<SocketInteractionContext>
 {
     private readonly ConcurrentDictionary<ulong, IAudioClient> _connectedChannels = new();
     
-    private readonly ILogger _logger;
-    private readonly IServicesAggregator _aggregator;
+    private readonly ILogger<MusicModule> _logger;
+    private readonly IDiscordBotService _botService;
+    private readonly ISettingsService _settingsService;
+    private readonly IDiscordAudioService _audioService;
     
-    public MusicModule(IServicesAggregator aggregator, ILogger logger)
+    public MusicModule(ILogger<MusicModule> logger, IDiscordAudioService audioService, IDiscordBotService botService, ISettingsService settingsService)
     {
         _logger = logger;
-        _aggregator = aggregator;
+        _botService = botService;
+        _audioService = audioService;
+        _settingsService = settingsService;
     }
 
     [SlashCommand(
@@ -42,22 +45,24 @@ public class MusicModule : InteractionModuleBase<SocketInteractionContext>
         MusicProvider? provider = null
     )
     {
-        await OnExceptionWrapper(async () => {
-            provider ??= MusicProvider.VK;
+        await MethodWrapper(async () => {
             await DeferAsync();
+            await EnsureInMusicChannel();
+            
+            provider ??= MusicProvider.VK;
             
             if (Uri.TryCreate(query, UriKind.Absolute, out Uri? link)
                 && (link.Scheme == Uri.UriSchemeHttp || link.Scheme == Uri.UriSchemeHttps)) {
 
                 BaseMusicProviderController? controller = link.FindMusicProviderController();
                 if (controller is null) {
-                    await RespondAsync("***This link is not supported***");
+                    await ModifyOriginalResponseAsync(m => m.Content = "***This link is not supported***");
                     return;
                 }
 
                 SocketVoiceChannel? targetChannel = GetVoiceChannelWithCurrentUser();
                 if (targetChannel is null) {
-                    await RespondAsync("User is not found in any of the voice channels");
+                    await ModifyOriginalResponseAsync(m => m.Content = "User is not found in any of the voice channels");
                     return;
                 }
                 
@@ -75,55 +80,43 @@ public class MusicModule : InteractionModuleBase<SocketInteractionContext>
                 
                 IEnumerable<AudioQueueRecord> records = await controller.GetAudiosFromLink(link);
 
-                _aggregator.DiscordAudio.RegisterChannel(Context.Guild, targetChannel.Id);
-                _aggregator.DiscordAudio.AddAudios(Context.Guild.Id, records);
+                _audioService.RegisterChannel(Context.Guild, targetChannel.Id);
+                _audioService.AddAudios(Context.Guild.Id, records);
                 
                 await ModifyOriginalResponseAsync((m) => m.Content = $"Queue started");
-                await _aggregator.DiscordAudio.PlayQueueAsync(Context.Guild.Id);
+                await _audioService.PlayQueueAsync(Context.Guild.Id);
             } else {
-                await RespondAsync("Searching...");
+                await ModifyOriginalResponseAsync(m => m.Content = "Searching...");
             }
         });
     }
 
-    [SlashCommand("stop", "Stops playing the songs queue", runMode: RunMode.Async)]
-    public async Task StopAsync()
-    {
-        await OnExceptionWrapper(async () => {
-            throw new ArgumentException("Test");
-            
-            await _aggregator.DiscordAudio.StopQueueAsync(Context.Guild.Id);
-            await RespondAsync("Stopped");
-        });
-    }
-
-    [SlashCommand("queue", "Shows the list of songs that are currently playing", runMode: RunMode.Async)]
-    public async Task ShowQueueAsync()
-    {
-        await OnExceptionWrapper(async () => {
-            await DeferAsync();
-            
-            ConcurrentQueue<AudioQueueRecord> queue = _aggregator.DiscordAudio.GetQueue(Context.Guild.Id);
-            await ModifyOriginalResponseAsync(m => m.GenerateQueueMessage(queue));
-        });
-    }
-
-    [SlashCommand("shuffle", "Shuffles the list of songs", runMode: RunMode.Async)]
-    public async Task ShuffleQueueAsync()
-    {
-        await OnExceptionWrapper(async () => {
-            await DeferAsync();
-            _aggregator.DiscordAudio.ShuffleQueue(Context.Guild.Id);
-            await ModifyOriginalResponseAsync(m => m.Content = "Queue is shuffled");
-        });
-    }
-
-    private async Task OnExceptionWrapper(Func<Task> inner)
+    private async Task MethodWrapper(Func<Task> inner)
     {
         try {
             await inner();
+            await Task.Delay(5000);
+            await DeleteOriginalResponseAsync();
         } catch (Exception e) {
-            await _aggregator.DiscordBot.HandleInteractionException(e);
+            await _botService.HandleInteractionException(e);
+        }
+    }
+
+    private async Task EnsureInMusicChannel()
+    {
+        Guild guild = await _settingsService.GetGuildDataAsync(Context.Guild.Id);
+        if (guild.MusicChannelId is null || guild.MusicMessageId is null) {
+            await ModifyOriginalResponseAsync(m =>
+                m.Content = "Music channel is not registered, register it with /register-music-channel");
+            throw new MusicChannelNotRegisteredException();
+        }
+
+        if (Context.Channel.Id != guild.MusicChannelId.Value) {
+            await ModifyOriginalResponseAsync(m =>
+                m.Content = "Music player commands can only be executed in preregistered music channel");
+            throw new InteractionCommandException(Context.Interaction, InteractionCommandError.Exception,
+                "Attempt to execute command of a music module in the channel, " +
+                "that is not registered as a music channel");
         }
     }
 

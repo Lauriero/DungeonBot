@@ -1,6 +1,4 @@
 ﻿using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.Threading.Tasks;
 
 using Discord.WebSocket;
 
@@ -8,10 +6,8 @@ using DungeonDiscordBot.Model;
 
 namespace DungeonDiscordBot.Controllers.Abstraction;
 
-public interface IDiscordAudioController
+public interface IDiscordAudioService
 {
-    Task Init(IServicesAggregator aggregator);
-
     /// <summary>
     /// Adds a song to the queue.
     /// </summary>
@@ -36,13 +32,15 @@ public interface IDiscordAudioController
     /// Stops playing the queue.
     /// </summary>
     /// <param name="guildId">Id of the server.</param>
-    Task StopQueueAsync(ulong guildId);
+    Task PauseQueueAsync(ulong guildId);
+
+    Task SkipTrackAsync(ulong guildId);
 
     /// <summary>
     /// Remove all songs from the queue.
     /// </summary>
     /// <param name="guildId">Id of the server.</param>
-    void ClearQueue(ulong guildId);
+    Task ClearQueue(ulong guildId);
 
     /// <summary>
     /// Registers a discord voice channel that will be used as a speaking channel on this server.
@@ -58,8 +56,25 @@ public interface IDiscordAudioController
     ConcurrentQueue<AudioQueueRecord> GetQueue(ulong guildId);
 
     /// <summary>
+    /// Registers a metadata for the server.
+    /// </summary>
+    /// <returns></returns>
+    MusicPlayerMetadata CreateMusicPlayerMetadata(ulong guildId);
+
+    /// <summary>
+    /// Gets metadata of the music player for the server.
+    /// </summary>
+    MusicPlayerMetadata GetMusicPlayerMetadata(ulong guildId);
+
+    
+    /// <summary>
+    /// Updates queue message for this server.
+    /// </summary>
+    Task UpdateSongsQueueAsync(ulong guildId, int? pageNumber = null, string message = "", CancellationToken token = default);
+
+    /// <summary>
     /// Shuffles the server queue.
     /// </summary>
     /// <param name="guildId">Id of the server.</param>
-    void ShuffleQueue(ulong guildId);
+    Task ShuffleQueue(ulong guildId);
 }
