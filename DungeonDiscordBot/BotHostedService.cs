@@ -1,15 +1,9 @@
-﻿using Discord.Interactions;
-using Discord.WebSocket;
-
-using DungeonDiscordBot.Controllers;
-using DungeonDiscordBot.Controllers.Abstraction;
+﻿using DungeonDiscordBot.Controllers.Abstraction;
 using DungeonDiscordBot.Model;
 using DungeonDiscordBot.MusicProvidersControllers;
 
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-
-using Serilog;
 
 namespace DungeonDiscordBot;
 

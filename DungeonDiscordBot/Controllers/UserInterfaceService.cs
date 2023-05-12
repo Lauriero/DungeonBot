@@ -16,6 +16,8 @@ namespace DungeonDiscordBot.Controllers;
 
 public class UserInterfaceService : IUserInterfaceService
 {
+    private const int PROGRESS_BARS_COUNT = 20;
+    
     public int InitializationPriority => 6;
     
     private IDiscordBotService _botService = null!;
@@ -101,7 +103,7 @@ public class UserInterfaceService : IUserInterfaceService
         
         queue.TryPeek(out AudioQueueRecord? firstRecord);
 
-        string nextSongsList = "";
+        string nextSongsList = queue.Count > 1 ? "📋 **Next songs:**\n" : "";
         for (int i = 1 + (pageNumber - 1) * 10; i < 11 + (pageNumber - 1) * 10 && i < queue.Count; i++) {
             AudioQueueRecord record = queue.ElementAt(i);
             if (i < 10) {
@@ -119,16 +121,28 @@ public class UserInterfaceService : IUserInterfaceService
                           "or play something with /play\n" +
                           "```";
         } else if (firstRecord is not null) {
+            TimeSpan elapsed = playerMetadata.Elapsed;
+            TimeSpan total = await firstRecord.Duration;
+            
+            int barsProgressed = (int)Math.Floor(elapsed.TotalSeconds * PROGRESS_BARS_COUNT / total.TotalSeconds);
             description = $"🎶 **Now playing:**  ***[{firstRecord.Author} - {firstRecord.Title}](https://google.com/)***\n" +
-                          $"00:23 ‎ ‎‏‏‎‎ [▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰](https://google.com/)▱▱ ‎ ‎‏‏‎‎ 08:30\n\n" +
-                          $"📋 **Next songs:**\n" + nextSongsList;
+                          $"{elapsed:mm\\:ss} ‎ ‎‏‏‎‎ " +
+                          (barsProgressed > 0 ? $"[{new String('▰', barsProgressed)}](https://google.com/)" : "") +
+                          $"{new String('▱', PROGRESS_BARS_COUNT - barsProgressed)} ‎ ‎‏‏‎‎ " +
+                          $"{total:mm\\:ss}\n\n" +
+                          nextSongsList;
         } else {
             throw new Exception();
         }
         
         int pagesCount = (int) Math.Ceiling((queue.Count - 1) / 10.0);
-        if (queue.IsEmpty) {
+        if (pagesCount < 1) {
             pagesCount = 1;
+        }
+
+        string thumbnailUrl = "http://larc.tech/content/dungeon-bot/dj.png";
+        if (firstRecord is not null) {
+            thumbnailUrl = await firstRecord.AudioThumbnailUrl.Value ?? thumbnailUrl;
         }
         
         EmbedBuilder embedBuilder = new EmbedBuilder()
@@ -137,7 +151,7 @@ public class UserInterfaceService : IUserInterfaceService
             .WithTitle(embedTitle)
             .WithFooter($"Page {pageNumber}/{pagesCount}‏‏‎ ‎‏‏‎‎ • ‏‏‎‏‏‎ {queue.Count} songs",
                 "http://larc.tech/content/dungeon-bot/up-and-down.png")
-            .WithThumbnailUrl(firstRecord?.AudioThumbnailUrl ?? "http://larc.tech/content/dungeon-bot/dj.png")
+            .WithThumbnailUrl(thumbnailUrl)
             .WithDescription(description);
         
         ComponentBuilder componentBuilder = new ComponentBuilder();

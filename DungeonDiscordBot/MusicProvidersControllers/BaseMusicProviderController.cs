@@ -28,7 +28,29 @@ public abstract class BaseMusicProviderController :
     /// <summary>
     /// Gets audios by a url.
     /// </summary>
-    public abstract Task<IEnumerable<AudioQueueRecord>> GetAudiosFromLink(Uri link);
+    public abstract Task<IEnumerable<AudioQueueRecord>> GetAudiosFromLinkAsync(Uri link);
+
+    /// <summary>
+    /// Gets a single audio from a search query.
+    /// </summary>
+    public abstract Task<AudioQueueRecord?> GetAudioFromSearchQueryAsync(string query);
+    
+    protected void OnAudiosProcessingStarted(int audiosToProcess)
+    {
+        AudiosProcessingStarted?.Invoke(audiosToProcess);
+    }
+
+    protected void OnAudiosProcessingProgress(int audiosProcessed, int audiosToProcess)
+    {
+        AudiosProcessingProgressed?.Invoke(audiosProcessed, audiosToProcess);
+    }
+
+    protected void OnAudiosProcessed(int audiosAdded)
+    {
+        AudiosProcessed?.Invoke(audiosAdded);
+    }
+    
+    #region Implementations
 
     public int CompareTo(BaseMusicProviderController? other)
     {
@@ -47,20 +69,7 @@ public abstract class BaseMusicProviderController :
 
         return this.ProviderType != other.ProviderType;
     }
-
-    protected void OnAudiosProcessingStarted(int audiosToProcess)
-    {
-        AudiosProcessingStarted?.Invoke(audiosToProcess);
-    }
-
-    protected void OnAudiosProcessingProgress(int audiosProcessed, int audiosToProcess)
-    {
-        AudiosProcessingProgressed?.Invoke(audiosProcessed, audiosToProcess);
-    }
-
-    protected void OnAudiosProcessed(int audiosAdded)
-    {
-        AudiosProcessed?.Invoke(audiosAdded);
-    }
-
+    
+    #endregion
+    
 }

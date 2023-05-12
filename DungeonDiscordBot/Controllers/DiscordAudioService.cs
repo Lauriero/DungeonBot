@@ -66,46 +66,34 @@ public class DiscordAudioService : IDiscordAudioService
     /// <inheritdoc /> 
     public async Task PauseQueueAsync(ulong guildId)
     {
-        if (!_guildCancellationTokens.TryGetValue(guildId, out CancellationTokenSource? cts)) {
+        if (!_guildCancellationTokens.TryRemove(guildId, out CancellationTokenSource? cts)) {
             return;
         }
         
-        if (!_guildChannels.TryGetValue(guildId, out SocketVoiceChannel? channel)) {
-            throw new ArgumentException("No voice channels are registered for this server", nameof(guildId));
-        }
-            
-        if (!_connectedChannels.TryGetValue(channel!.Id, out IAudioClient? client)) {
-            return;
-        }
-
         cts.Cancel();
         cts.Dispose();
-        
+
         GetMusicPlayerMetadata(guildId).State = MusicPlayerState.Paused;
         await UpdateSongsQueueAsync(guildId);
     }
     
     public async Task SkipTrackAsync(ulong guildId)
     {
-        if (!_guildCancellationTokens.TryGetValue(guildId, out CancellationTokenSource? cts)) {
+        if (!_guildCancellationTokens.TryRemove(guildId, out CancellationTokenSource? cts)) {
             return;
         }
-        
+
         if (!_guildChannels.TryGetValue(guildId, out SocketVoiceChannel? channel)) {
             throw new ArgumentException("No voice channels are registered for this server", nameof(guildId));
         }
-            
-        if (!_connectedChannels.TryGetValue(channel!.Id, out IAudioClient? client)) {
-            return;
-        }
 
         MusicPlayerMetadata metadata = GetMusicPlayerMetadata(guildId);
-
         metadata.SkipRequested = true;
         metadata.Elapsed = TimeSpan.Zero;
+        
         cts.Cancel();
         cts.Dispose();
-
+        
         if (!GetQueue(guildId).TryDequeue(out AudioQueueRecord? _)) {
             throw new InvalidOperationException("Error dequeuing audio from the queue.");
         }
@@ -116,10 +104,6 @@ public class DiscordAudioService : IDiscordAudioService
     /// <inheritdoc /> 
     public async Task ClearQueue(ulong guildId)
     {
-        if (!_guildCancellationTokens.TryGetValue(guildId, out CancellationTokenSource? cts)) {
-            return;
-        }
-        
         if (!_guildChannels.TryGetValue(guildId, out SocketVoiceChannel? channel)) {
             throw new ArgumentException("No voice channels are registered for this server", nameof(guildId));
         }
@@ -127,10 +111,16 @@ public class DiscordAudioService : IDiscordAudioService
         if (!_connectedChannels.TryGetValue(channel!.Id, out IAudioClient? client)) {
             return;
         }
+     
+        if (_guildCancellationTokens.TryGetValue(guildId, out CancellationTokenSource? cts)) {
+            cts.Cancel();
+            cts.Dispose();
+            
+            if (!_guildCancellationTokens.TryRemove(guildId, out CancellationTokenSource? _)) {
+                throw new InvalidOperationException("Error removing guild audio token");
+            }
+        }
 
-        cts.Cancel();
-        cts.Dispose();
-        
         await client!.StopAsync();
         await channel.DisconnectAsync();
 
@@ -222,73 +212,77 @@ public class DiscordAudioService : IDiscordAudioService
         return client;
     }
 
-    private async Task PlayNextRecord(ConcurrentQueue<AudioQueueRecord> queue, IAudioClient client, 
-        ulong guildId, CancellationToken token = default)
+    private async Task PlayNextRecord(ConcurrentQueue<AudioQueueRecord> queue, IAudioClient client, ulong guildId, CancellationToken token = default)
     {
-        MusicPlayerMetadata metadata = GetMusicPlayerMetadata(guildId);
-        metadata.State = MusicPlayerState.Playing;
+        while (true) {
+            MusicPlayerMetadata metadata = GetMusicPlayerMetadata(guildId);
+            metadata.State = MusicPlayerState.Playing;
 
-        if (queue.IsEmpty) {
-            await PauseQueueAsync(guildId);
-            return;
-        }
-        
-        if (!queue.TryPeek(out AudioQueueRecord? record)) {
-            throw new InvalidOperationException("Error peeking in the audio queue.");
-        }
-
-        await UpdateSongsQueueAsync(guildId, token: token);
-
-        if (token.IsCancellationRequested) {
-            return;
-        }
-        
-        Stopwatch watch = new Stopwatch();
-        watch.Start();
-
-        using (Process ffmpeg = CreateStream(record.AudioUri.AbsoluteUri, metadata.Elapsed, token))
-        await using (Stream output = ffmpeg.StandardOutput.BaseStream)
-        await using (AudioOutStream? discord = client.CreatePCMStream(AudioApplication.Mixed))
-        {
-            try {
-                await output.CopyToAsync(discord, token);
-            } catch (OperationCanceledException) {
-                
-            } finally {
-                if (!token.IsCancellationRequested) {
-                    await discord.FlushAsync(token);
-                }
-                watch.Stop();
-            }
-        }
-
-        if (watch.IsRunning) {
-            watch.Stop();
-        }
-        
-        if (token.IsCancellationRequested) {
-            if (metadata.SkipRequested) {
-                metadata.SkipRequested = false;
+            if (queue.IsEmpty) {
+                await PauseQueueAsync(guildId);
                 return;
             }
-            
-            if (metadata.Elapsed.TotalSeconds > 1) {
-                metadata.Elapsed = metadata.Elapsed.Add(watch.Elapsed);
-            } else {
-                metadata.Elapsed = watch.Elapsed;
-            }
-            
-            return;
-        }
 
-        metadata.Elapsed = TimeSpan.Zero;
-        if (metadata.RepeatMode != RepeatMode.RepeatSong) {
-            if (!queue.TryDequeue(out AudioQueueRecord? _)) {
-                throw new InvalidOperationException("Error dequeuing audio from the queue.");
+            if (!queue.TryPeek(out AudioQueueRecord? record)) {
+                throw new InvalidOperationException("Error peeking in the audio queue.");
+            }
+
+            await UpdateSongsQueueAsync(guildId, token: token);
+
+            Stopwatch watch = new Stopwatch();
+            watch.Start();
+
+            using (Process ffmpeg = CreateStream(await record.AudioUrl.Value, metadata.Elapsed, token))
+            await using (Stream output = ffmpeg.StandardOutput.BaseStream)
+            await using (AudioOutStream? discord = client.CreatePCMStream(AudioApplication.Mixed)) {
+                try {
+                    await output.CopyToAsync(discord, token);
+                } catch (OperationCanceledException) {
+                } finally {
+                    if (!token.IsCancellationRequested) {
+                        await discord.FlushAsync(token);
+                    }
+
+                    watch.Stop();
+                }
+            }
+
+            if (watch.IsRunning) {
+                watch.Stop();
+            }
+
+            if (token.IsCancellationRequested) {
+                if (metadata.SkipRequested) {
+                    metadata.SkipRequested = false;
+                    if (metadata.RepeatMode == RepeatMode.RepeatQueue) {
+                        queue.Enqueue(record);
+                    }
+
+                    await UpdateSongsQueueAsync(guildId);
+
+                    return;
+                }
+
+                if (metadata.Elapsed.TotalSeconds > 1) {
+                    metadata.Elapsed = metadata.Elapsed.Add(watch.Elapsed);
+                } else {
+                    metadata.Elapsed = watch.Elapsed;
+                }
+
+                return;
+            }
+
+            metadata.Elapsed = TimeSpan.Zero;
+            if (metadata.RepeatMode != RepeatMode.RepeatSong) {
+                if (!queue.TryDequeue(out AudioQueueRecord? _)) {
+                    throw new InvalidOperationException("Error dequeuing audio from the queue.");
+                }
+            }
+
+            if (metadata.RepeatMode == RepeatMode.RepeatQueue) {
+                queue.Enqueue(record);
             }
         }
-
-        await PlayNextRecord(queue, client, guildId, token);
     }
 
     public Task UpdateSongsQueueAsync(ulong guildId, int? pageNumber = null, string message = "", CancellationToken token = default)
@@ -307,20 +301,21 @@ public class DiscordAudioService : IDiscordAudioService
         Process? process = Process.Start(new ProcessStartInfo
         {
             FileName = "ffmpeg",
-            Arguments = $"-http_persistent false -hide_banner -loglevel panic -i \"{path}\" " +
-                        $"-ac 2 -f s16le -ss {startTime:hh\\:mm\\:ss} -ar 48000 pipe:1",
+            Arguments = $"-hide_banner -i \"{path}\" -ac 2 -f s16le " +
+                        $"-ss {startTime:hh\\:mm\\:ss} -ar 48000 -http_persistent false pipe:1",
             UseShellExecute = false,
-            RedirectStandardOutput = true,
+            RedirectStandardOutput = true
         });
-
+        
         if (process is null) {
             throw new InvalidOperationException("Unable to start process");
         }
-        
-        Task.Run(async () => { 
-            await token.WaitForCancellationAsync();
+
+        Task.Run(async () => {
+            await process.WaitForExitAsync(token);
             if (!process.HasExited) {
                 process.Kill();
+                process.Dispose();
             }
         });
             

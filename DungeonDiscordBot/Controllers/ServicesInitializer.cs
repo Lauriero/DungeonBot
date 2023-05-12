@@ -7,9 +7,6 @@ using Extensions.Hosting.AsyncInitialization;
 
 using Microsoft.Extensions.DependencyInjection;
 
-using Serilog;
-using Serilog.Templates;
-
 namespace DungeonDiscordBot.Controllers;
 
 public class ServicesInitializer : IAsyncInitializer

@@ -2,7 +2,6 @@
 
 using DungeonDiscordBot.Controllers.Abstraction;
 using DungeonDiscordBot.Model;
-using DungeonDiscordBot.Utilities;
 
 using Microsoft.Extensions.Logging;
 

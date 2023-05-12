@@ -1,8 +1,4 @@
-﻿using System.Collections;
-using System.Reflection;
-
-using DungeonDiscordBot.Controllers;
-using DungeonDiscordBot.Controllers.Abstraction;
+﻿using System.Reflection;
 
 using Microsoft.Extensions.DependencyInjection;
 

@@ -6,6 +6,7 @@
     
     public string VKLogin { get; set; } = String.Empty;
     public string VKPassword { get; set; } = String.Empty;
+    public string YMToken { get; set; } = String.Empty;
     public string DiscordBotToken { get; set; } = String.Empty;
     
     public string DBConnectionString { get; set; } = String.Empty;

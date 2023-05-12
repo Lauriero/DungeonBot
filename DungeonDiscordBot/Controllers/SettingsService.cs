@@ -1,5 +1,4 @@
-﻿using DungeonDiscordBot.Controllers.Abstraction;
-using DungeonDiscordBot.Model.Database;
+﻿using DungeonDiscordBot.Model.Database;
 
 using Microsoft.EntityFrameworkCore;
 

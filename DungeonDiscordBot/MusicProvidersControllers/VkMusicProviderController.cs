@@ -38,15 +38,15 @@ public class VkMusicProviderController : BaseMusicProviderController
         services.AddAudioBypass();
         
         _api = new VkApi(services);   
-        // await _api.AuthorizeAsync(new ApiAuthParams {
-        //     Login = _settings.VKLogin,
-        //     Password = _settings.VKPassword,
-        // });
-        //
+        await _api.AuthorizeAsync(new ApiAuthParams {
+            Login = _settings.VKLogin,
+            Password = _settings.VKPassword,
+        });
+        
         _logger.LogInformation("VK Music provider initialized");
     }
 
-    public override async Task<IEnumerable<AudioQueueRecord>> GetAudiosFromLink(Uri link)
+    public override async Task<IEnumerable<AudioQueueRecord>> GetAudiosFromLinkAsync(Uri link)
     {
         List<AudioQueueRecord> records = new List<AudioQueueRecord>();
         
@@ -99,12 +99,35 @@ public class VkMusicProviderController : BaseMusicProviderController
                 continue;
             }
             
-            records.Add(new AudioQueueRecord(audio.Artist, audio.Title, audio.Url, audio.Album?.Thumb.Photo135));
+            records.Add(new AudioQueueRecord(audio.Artist, audio.Title, 
+                () => Task.FromResult(audio.Url.AbsoluteUri), 
+                () => Task.FromResult(audio.Album?.Thumb.Photo135),
+                TimeSpan.FromSeconds(audio.Duration)));
             addedCount++;
         }
         
         OnAudiosProcessed(addedCount);
         return records;
+    }
+
+    public override async Task<AudioQueueRecord?> GetAudioFromSearchQueryAsync(string query)
+    {
+        VkCollection<Audio> audios = await _api.Audio.SearchAsync(new AudioSearchParams {
+            Query = query,
+            Count = 1,
+            Autocomplete = true
+        });
+
+        if (audios.Count == 0) {
+            return null;
+        }
+
+        Audio audio = audios.First();
+
+        return new AudioQueueRecord(audio.Artist, audio.Title,
+            () => Task.FromResult(audio.Url.AbsoluteUri),
+            () => Task.FromResult(audio.Album?.Thumb.Photo135),
+            TimeSpan.FromSeconds(audio.Duration));
     }
 
     public async Task<IEnumerable<Audio>> GetAudios(long userId, long playlistId, string accessKey)

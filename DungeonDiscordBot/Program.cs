@@ -15,8 +15,6 @@ using Microsoft.Extensions.Logging;
 
 using Serilog;
 
-using VkNet.Model;
-
 namespace DungeonDiscordBot
 {
     internal static class Program
