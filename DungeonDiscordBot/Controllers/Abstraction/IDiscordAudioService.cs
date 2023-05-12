@@ -1,5 +1,7 @@
 ﻿using System.Collections.Concurrent;
 
+using ConcurrentLinkedList;
+
 using Discord.WebSocket;
 
 using DungeonDiscordBot.Model;

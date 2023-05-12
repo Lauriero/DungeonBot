@@ -1,4 +1,6 @@
-﻿namespace DungeonDiscordBot.Model;
+﻿using System.Collections.Concurrent;
+
+namespace DungeonDiscordBot.Model;
 
 public class MusicPlayerMetadata
 {
@@ -11,6 +13,8 @@ public class MusicPlayerMetadata
     public MusicPlayerState State { get; set; } = MusicPlayerState.Stopped;
 
     public RepeatMode RepeatMode { get; set; } = RepeatMode.NoRepeat;
+
+    public ConcurrentStack<AudioQueueRecord> PreviousTracks { get; } = new ConcurrentStack<AudioQueueRecord>();
 }
 
 public enum MusicPlayerState
