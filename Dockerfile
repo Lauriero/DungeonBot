@@ -7,13 +7,16 @@ RUN apt-get -y install libsodium-dev
 
 # Copy everything
 COPY . ./
-# Restore as distinct layers
+
+WORKDIR /App/Yandex.Music.Api
 RUN dotnet restore
-# Build and publish a release
+
+WORKDIR /App/DungeonDiscordBot
+RUN dotnet restore
 RUN dotnet publish -c Release -o out
 
 # Build runtime image
 FROM mcr.microsoft.com/dotnet/runtime:6.0
-WORKDIR /App
+WORKDIR /App/DungeonDiscordBot
 COPY --from=build-env /App/out .
 ENTRYPOINT ["dotnet", "DungeonDiscordBot.dll"]
