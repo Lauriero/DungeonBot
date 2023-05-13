@@ -1,4 +1,7 @@
-﻿namespace DungeonDiscordBot.Utilities;
+﻿using System;
+using System.Collections.Generic;
+
+namespace DungeonDiscordBot.Utilities;
 
 public static class CollectionExtensions
 {

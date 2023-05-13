@@ -1,4 +1,7 @@
-﻿namespace DungeonDiscordBot.Utilities;
+﻿using System.Threading;
+using System.Threading.Tasks;
+
+namespace DungeonDiscordBot.Utilities;
 
 public static class AsyncExtensions
 {

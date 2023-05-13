@@ -1,6 +1,10 @@
-﻿using System.Diagnostics;
+﻿using System;
+using System.Collections.Generic;
+using System.Diagnostics;
 using System.Diagnostics.Contracts;
+using System.Linq;
 using System.Text.RegularExpressions;
+using System.Threading.Tasks;
 
 using DungeonDiscordBot.Exceptions;
 using DungeonDiscordBot.Model;

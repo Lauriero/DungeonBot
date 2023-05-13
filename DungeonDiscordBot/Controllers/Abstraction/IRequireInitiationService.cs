@@ -1,4 +1,6 @@
-﻿namespace DungeonDiscordBot.Controllers.Abstraction;
+﻿using System.Threading.Tasks;
+
+namespace DungeonDiscordBot.Controllers.Abstraction;
 
 public interface IRequireInitiationService
 {

@@ -58,12 +58,6 @@
     </ItemGroup>
 
     <ItemGroup>
-      <Reference Include="Yandex.Music.Api, Version=1.3.6.0, Culture=neutral, PublicKeyToken=null">
-        <HintPath>..\..\..\..\GitHub\Yandex.Music.Api\src\Yandex.Music.Api\bin\Debug\net6.0\Yandex.Music.Api.dll</HintPath>
-      </Reference>
-    </ItemGroup>
-
-    <ItemGroup>
       <ProjectReference Include="..\Yandex.Music.API\Yandex.Music.API.csproj" />
     </ItemGroup>
 

@@ -1,4 +1,7 @@
-﻿using Discord.Interactions;
+﻿using System;
+using System.Threading.Tasks;
+
+using Discord.Interactions;
 using Discord.WebSocket;
 
 using DungeonDiscordBot.Controllers;

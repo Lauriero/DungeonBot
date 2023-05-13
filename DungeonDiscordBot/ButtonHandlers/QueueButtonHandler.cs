@@ -1,4 +1,7 @@
-﻿using Discord.WebSocket;
+﻿using System;
+using System.Threading.Tasks;
+
+using Discord.WebSocket;
 
 using DungeonDiscordBot.Controllers.Abstraction;
 using DungeonDiscordBot.Model;

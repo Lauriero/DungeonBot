@@ -1,5 +1,6 @@
 ﻿#nullable disable
 
+using System;
 using System.Reflection;
 
 namespace DungeonDiscordBot.Utilities;

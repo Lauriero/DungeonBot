@@ -1,4 +1,6 @@
-﻿using System.Runtime.Versioning;
+﻿using System;
+using System.Runtime.Versioning;
+using System.Threading.Tasks;
 
 using Discord.Interactions;
 using Discord.WebSocket;
