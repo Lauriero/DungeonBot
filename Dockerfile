@@ -8,7 +8,7 @@ RUN apt-get -y install libsodium-dev
 # Copy everything
 COPY . ./
 
-WORKDIR /App/Yandex.Music.Api
+WORKDIR /App/Yandex.Music.API
 RUN dotnet restore
 
 WORKDIR /App/DungeonDiscordBot
