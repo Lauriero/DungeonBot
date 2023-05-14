@@ -3,20 +3,21 @@ WORKDIR /App
 
 RUN apt-get update
 RUN apt-get -y install libopus-dev
-RUN apt-get -y install libsodium-dev
+RUN apt-get -y install libsodium-
 
 # Copy everything
 COPY . ./
 
-WORKDIR /App/Yandex.Music.API
-RUN dotnet restore
+RUN apt-get install -y tcpreplay libpcap-dev pkg-config libssl-dev && \
+    apt-get install -y build-essential file && \
+    bash install-opus-tools.sh && \
+    apt-get remove -y build-essential && \
+    apt-get clean
 
-WORKDIR /App/DungeonDiscordBot
 RUN dotnet restore
 RUN dotnet publish -c Release -o out
 
 # Build runtime image
 FROM mcr.microsoft.com/dotnet/runtime:6.0
-WORKDIR /App/DungeonDiscordBot
 COPY --from=build-env /App/out .
 ENTRYPOINT ["dotnet", "DungeonDiscordBot.dll"]
