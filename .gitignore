@@ -421,4 +421,4 @@ fabric.properties
 
 upgrade-assistant.clef
 
-**/appsettings.Development.json
+**/appsettings.*.json
