@@ -3,7 +3,7 @@ WORKDIR /App
 
 RUN apt-get update
 RUN apt-get -y install libopus-dev
-RUN apt-get -y install libsodium-
+RUN apt-get -y install libsodium-dev
 
 # Copy everything
 COPY . ./

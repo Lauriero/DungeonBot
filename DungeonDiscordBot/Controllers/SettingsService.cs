@@ -32,7 +32,8 @@ public class SettingsService : ISettingsService
     /// <inheritdoc />
     public async Task UnregisterGuild(ulong guildId, CancellationToken token = default)
     {
-        _dataContext.Guilds.Remove(new Guild {Id = guildId});
+        _dataContext.Guilds.Remove(
+            await GetGuildDataAsync(guildId, token));
         await _dataContext.SaveChangesAsync(token);
     }
 
