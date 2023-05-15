@@ -17,6 +17,8 @@ RUN apt-get install -y tcpreplay libpcap-dev pkg-config libssl-dev && \
 RUN dotnet restore
 RUN dotnet publish -c Release -o out
 
+COPY Dockerfile ./DungeonDiscordBot/appsettings.Production.json? App/out/
+
 # Build runtime image
 FROM mcr.microsoft.com/dotnet/runtime:6.0
 COPY --from=build-env /App/out .
