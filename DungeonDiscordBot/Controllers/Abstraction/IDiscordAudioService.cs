@@ -39,6 +39,18 @@ public interface IDiscordAudioService
     /// <param name="guildId">Id of the server.</param>
     Task PauseQueueAsync(ulong guildId);
 
+    /// <summary>
+    /// Puts track that has been playing the last time to the head of the queue.
+    /// </summary>
+    /// <param name="guildId"></param>
+    /// <returns></returns>
+    Task PlayPreviousTrackAsync(ulong guildId);
+    
+    /// <summary>
+    /// Removes track that is currently playing from the queue.
+    /// </summary>
+    /// <param name="guildId"></param>
+    /// <returns></returns>
     Task SkipTrackAsync(ulong guildId);
 
     /// <summary>

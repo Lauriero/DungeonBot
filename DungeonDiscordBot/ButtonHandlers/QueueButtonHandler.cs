@@ -51,9 +51,9 @@ public class QueueButtonHandler : IButtonHandler
                 await _audioService.UpdateSongsQueueAsync(guild.Id, 1);
                 break;
             
-            // case QueueButtonHandler.QUEUE_PREV_SONG_BUTTON_ID:
-            //     ;
-            //     break;
+            case QUEUE_PREV_SONG_BUTTON_ID:
+                await _audioService.PlayPreviousTrackAsync(guild.Id);
+                break;
             
             case QUEUE_TOGGLE_STATE_BUTTON_ID:
                 if (metadata.State is MusicPlayerState.Paused or MusicPlayerState.Stopped) {
