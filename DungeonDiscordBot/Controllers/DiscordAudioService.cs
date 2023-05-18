@@ -7,6 +7,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
+using Discord;
 using Discord.Audio;
 using Discord.WebSocket;
 
@@ -89,24 +90,24 @@ public class DiscordAudioService : IDiscordAudioService
             throw new ArgumentException("No queue found for this guild");
         }
         
-        if (!_guildCancellationTokens.TryRemove(guildId, out CancellationTokenSource? cts)) {
-            return;
-        }
-
-        if (!_guildChannels.TryGetValue(guildId, out SocketVoiceChannel? channel)) {
-            throw new ArgumentException("No voice channels are registered for this server", nameof(guildId));
-        }
-
         MusicPlayerMetadata metadata = GetMusicPlayerMetadata(guildId);
         if (metadata.PreviousTracks.IsEmpty) {
             throw new ArgumentException("This guild has no previous tracks");
         }
         
         metadata.StopRequested = true;
+        metadata.PlayPreviousRequested = true;
         metadata.Elapsed = TimeSpan.Zero;
+
+        if (metadata.State == MusicPlayerState.Playing) {
+            if (!_guildCancellationTokens.TryRemove(guildId, out CancellationTokenSource? cts)) {
+                return;
+            }
+            
+            cts.Cancel();
+            cts.Dispose();
+        }
         
-        cts.Cancel();
-        cts.Dispose();
 
         if (!metadata.PreviousTracks.TryPop(out AudioQueueRecord? previousRecord)) {
             throw new ArgumentException("This guild has no previous tracks");
@@ -249,8 +250,14 @@ public class DiscordAudioService : IDiscordAudioService
             throw new ArgumentException("No voice channels are registered for this server", nameof(guildId));
         }
             
-        if (_connectedChannels.TryGetValue(channel!.Id, out IAudioClient? value)) {
-            return value;
+        if (_connectedChannels.TryGetValue(channel.Id, out IAudioClient? value)) {
+            if (value.ConnectionState == ConnectionState.Connected) {
+                return value;
+            } 
+            
+            if (!_connectedChannels.TryRemove(channel.Id, out IAudioClient? _)) {
+                throw new Exception("Error removing audio client from the dictionary") ;
+            }
         }
         
         IAudioClient client = await channel.ConnectAsync(selfDeaf: true);
@@ -263,12 +270,12 @@ public class DiscordAudioService : IDiscordAudioService
 
     private async Task PlayNextRecord(ConcurrentQueue<AudioQueueRecord> queue, IAudioClient client, ulong guildId, CancellationToken token = default)
     {
+        MusicPlayerMetadata metadata = GetMusicPlayerMetadata(guildId);
+        metadata.State = MusicPlayerState.Playing;
+
         while (!queue.IsEmpty) {
             await UpdateSongsQueueAsync(guildId, token: token);
             
-            MusicPlayerMetadata metadata = GetMusicPlayerMetadata(guildId);
-            metadata.State = MusicPlayerState.Playing;
-
             if (!queue.TryPeek(out AudioQueueRecord? record)) {
                 throw new InvalidOperationException("Error peeking in the audio queue.");
             }
@@ -298,7 +305,13 @@ public class DiscordAudioService : IDiscordAudioService
             if (token.IsCancellationRequested) {
                 if (metadata.StopRequested) {
                     metadata.StopRequested = false;
-                    metadata.PreviousTracks.Push(record);
+
+                    if (!metadata.PlayPreviousRequested) {
+                        metadata.PreviousTracks.Push(record);
+                    } else {
+                        metadata.PlayPreviousRequested = false;
+                    }
+
                     if (metadata.RepeatMode == RepeatMode.RepeatQueue) {
                         queue.Enqueue(record);
                     }
@@ -321,13 +334,19 @@ public class DiscordAudioService : IDiscordAudioService
                 if (!queue.TryDequeue(out AudioQueueRecord? _)) {
                     throw new InvalidOperationException("Error dequeuing audio from the queue.");
                 }
-
-                metadata.PreviousTracks.Push(record);
+                
             }
 
+            if (metadata.PlayPreviousRequested) {
+                metadata.PlayPreviousRequested = false;
+            }
+            
+            metadata.PreviousTracks.Push(record);
             if (metadata.RepeatMode == RepeatMode.RepeatQueue) {
                 queue.Enqueue(record);
             }
+
+            metadata.PlayPreviousRequested = false;
         }
         
         await ClearQueue(guildId);

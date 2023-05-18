@@ -189,7 +189,7 @@ public class UserInterfaceService : IUserInterfaceService
                         new ButtonBuilder {
                             Style = ButtonStyle.Primary,
                             Label = "‏‏‎ ‎‏‏‎ ‎❮❮‏‏‏‏‏‎ ‎‏‏‎ ‎",
-                            IsDisabled = true,
+                            IsDisabled = playerMetadata.PreviousTracks.IsEmpty,
                             CustomId = QueueButtonHandler.QUEUE_PREV_SONG_BUTTON_ID,
                         }.Build(),
                         new ButtonBuilder {
@@ -248,12 +248,14 @@ public class UserInterfaceService : IUserInterfaceService
                         new ButtonBuilder {
                             Style = ButtonStyle.Primary,
                             Label = "↝‏‏‎ ‎‏‏‎ ‎ Shuffle queue",
+                            IsDisabled = queue.IsEmpty,
                             CustomId = QueueButtonHandler.QUEUE_SHUFFLE_BUTTON_ID,
                         }.Build(),
                         new ButtonBuilder {
                             Style = ButtonStyle.Danger,
                             Label = "Clear queue‏‏‎ ‎",
                             Emote = new Emoji("🗑️"),
+                            IsDisabled = queue.IsEmpty,
                             CustomId = QueueButtonHandler.QUEUE_CLEAR_QUEUE_BUTTON_ID,
                         }.Build(),
                     }

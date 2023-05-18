@@ -9,6 +9,8 @@ public class MusicPlayerMetadata
 
     public bool StopRequested { get; set; } = false;
 
+    public bool PlayPreviousRequested { get; set; } = false;
+    
     public TimeSpan Elapsed { get; set; } = TimeSpan.Zero;
     
     public MusicPlayerState State { get; set; } = MusicPlayerState.Stopped;
