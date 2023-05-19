@@ -32,7 +32,7 @@ public abstract class BaseMusicProviderController :
     /// <summary>
     /// Gets audios by a url.
     /// </summary>
-    public abstract Task<IEnumerable<AudioQueueRecord>> GetAudiosFromLinkAsync(Uri link);
+    public abstract Task<IEnumerable<AudioQueueRecord>> GetAudiosFromLinkAsync(Uri link, int count);
 
     /// <summary>
     /// Gets a single audio from a search query.

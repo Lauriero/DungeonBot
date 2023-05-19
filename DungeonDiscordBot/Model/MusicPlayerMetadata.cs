@@ -18,6 +18,8 @@ public class MusicPlayerMetadata
     public RepeatMode RepeatMode { get; set; } = RepeatMode.NoRepeat;
 
     public ConcurrentStack<AudioQueueRecord> PreviousTracks { get; } = new ConcurrentStack<AudioQueueRecord>();
+    
+    public Timer? ElapsedTimer { get; set; }
 }
 
 public enum MusicPlayerState

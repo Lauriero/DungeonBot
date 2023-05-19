@@ -36,7 +36,7 @@ public class VkMusicProviderController : BaseMusicProviderController
     
     public override async Task InitializeAsync()
     {
-        _logger.LogInformation("VK Music provider initialization started");
+        _logger.LogInformation("Initializing VKMusic provider...");
 
         ServiceCollection services = new ServiceCollection();
         services.AddAudioBypass();
@@ -47,10 +47,10 @@ public class VkMusicProviderController : BaseMusicProviderController
             Password = _settings.VKPassword,
         });
         
-        _logger.LogInformation("VK Music provider initialized");
+        _logger.LogInformation("VKMusic provider initialized");
     }
 
-    public override async Task<IEnumerable<AudioQueueRecord>> GetAudiosFromLinkAsync(Uri link)
+    public override async Task<IEnumerable<AudioQueueRecord>> GetAudiosFromLinkAsync(Uri link, int count)
     {
         List<AudioQueueRecord> records = new List<AudioQueueRecord>();
         
@@ -95,9 +95,14 @@ public class VkMusicProviderController : BaseMusicProviderController
             throw new ArgumentException("Link is not supported", nameof(url));
         }
 
-        OnAudiosProcessingStarted(audios.Count());
+        int toAddCount = audios.Count();
+        if (count > -1) {
+            toAddCount = count;
+        }
+        
         int addedCount = 0;
-        for (int i = 0; i < audios.Count(); i++) {
+        OnAudiosProcessingStarted(audios.Count());
+        for (int i = 0; i < toAddCount; i++) {
             Audio audio = audios.ElementAt(i);
             if (audio.Url is null) {
                 continue;

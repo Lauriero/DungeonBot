@@ -41,10 +41,12 @@ public class YandexMusicProviderController : BaseMusicProviderController
     
     public override async Task InitializeAsync()
     {
+        _logger.LogInformation("Initializing YAMusic provider...");
         await _api.User.AuthorizeAsync(_apiAuth, _settings.YMToken);
+        _logger.LogInformation("YAMusic provider initialized");
     }
 
-    public override async Task<IEnumerable<AudioQueueRecord>> GetAudiosFromLinkAsync(Uri link)
+    public override async Task<IEnumerable<AudioQueueRecord>> GetAudiosFromLinkAsync(Uri link, int count)
     {
         Regex albumRegex = new Regex(@"^.+/album/(\d+)(/*?)$");
         Regex trackRegex = new Regex(@"^.+/album/(\d+)/track/(\d+)(/*?)$");
@@ -76,9 +78,15 @@ public class YandexMusicProviderController : BaseMusicProviderController
         } else {
             throw new MusicProviderException("Link is not supported");
         }
+        
+        int toAddCount = tracks.Count();
+        if (count > -1) {
+            toAddCount = count;
+        }
 
         IList<AudioQueueRecord> records = new List<AudioQueueRecord>();
-        foreach (YTrack track in tracks) {
+        for (int i = 0; i < toAddCount; ++i) {
+            YTrack track = tracks.ElementAt(i);
             if (!track.Available) {
                 continue;
             }

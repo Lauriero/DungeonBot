@@ -46,7 +46,10 @@ public class MusicModule : InteractionModuleBase<SocketInteractionContext>
         string query,
         
         [Summary("provider", "Name of the music providerController the search will be performed with (VK default)")]
-        MusicProvider? provider = null
+        MusicProvider? provider = null,
+        
+        [Summary("quantity", "Number of tracks that should be fetched")]
+        int quantity = -1
     )
     {
         await MethodWrapper(async () => {
@@ -61,6 +64,7 @@ public class MusicModule : InteractionModuleBase<SocketInteractionContext>
             
             provider ??= MusicProvider.VK;
             IEnumerable<AudioQueueRecord> records;
+            string message = "";
             if (Uri.TryCreate(query, UriKind.Absolute, out Uri? link)
                 && (link.Scheme == Uri.UriSchemeHttp || link.Scheme == Uri.UriSchemeHttps)) {
 
@@ -88,13 +92,13 @@ public class MusicModule : InteractionModuleBase<SocketInteractionContext>
                             m.Content = $"{audiosProcessed} audios were processed"));
                 };
                 
-                records = await controller.GetAudiosFromLinkAsync(link);
+                records = await controller.GetAudiosFromLinkAsync(link, quantity);
                 if (!records.Any()) {
                     await ModifyOriginalResponseAsync((m) => m.Content = $"No tracks were added");
                     return;
                 }
 
-                
+                message = $"**{records.Count()}** tracks were added to the queue";
             } else {
                 await ModifyOriginalResponseAsync(m => m.Content = "Searching...");
                 AudioQueueRecord? record = await provider.Value.GetAudioFromSearchQueryAsync(query);
@@ -104,13 +108,14 @@ public class MusicModule : InteractionModuleBase<SocketInteractionContext>
                 }
                 
                 records = new[] { record };
+                message = $"Song ***{record.Author} - {record.Title}*** was added to the queue";
                 await ModifyOriginalResponseAsync(m => 
-                    m.Content = $"Song ***{record.Author} - {record.Title}*** was added to the queue");
+                    m.Content = "Song is found");
             }
             
             _audioService.RegisterChannel(Context.Guild, targetChannel.Id);
             _audioService.AddAudios(Context.Guild.Id, records);
-            await _audioService.PlayQueueAsync(Context.Guild.Id);
+            await _audioService.PlayQueueAsync(Context.Guild.Id, message);
         });
     }
 

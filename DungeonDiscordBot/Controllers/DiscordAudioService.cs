@@ -52,7 +52,7 @@ public class DiscordAudioService : IDiscordAudioService
     }
 
     /// <inheritdoc /> 
-    public async Task PlayQueueAsync(ulong guildId)
+    public async Task PlayQueueAsync(ulong guildId, string reason = "")
     {
         var queue = GetQueue(guildId);
         
@@ -63,10 +63,10 @@ public class DiscordAudioService : IDiscordAudioService
         
         IAudioClient client = await ConnectToChannelAsync(guildId);
         ThreadPool.QueueUserWorkItem<
-            (ConcurrentQueue<AudioQueueRecord>, IAudioClient, ulong, CancellationToken)>
+            (ConcurrentQueue<AudioQueueRecord>, IAudioClient, ulong, string, CancellationToken)>
             (async (s) => 
-                await PlayNextRecord(s.Item1, s.Item2, s.Item3, s.Item4), 
-                (queue, client, guildId, cts.Token),
+                await PlayNextRecord(s.Item1, s.Item2, s.Item3, s.Item4, s.Item5), 
+                (queue, client, guildId, reason, cts.Token),
                 false);
     }
 
@@ -152,28 +152,22 @@ public class DiscordAudioService : IDiscordAudioService
     /// <inheritdoc /> 
     public async Task ClearQueue(ulong guildId)
     {
-        if (!_guildCancellationTokens.TryGetValue(guildId, out CancellationTokenSource? cts)) {
-            return;
-        }
-        
-        if (!_guildChannels.TryGetValue(guildId, out SocketVoiceChannel? channel)) {
-            return;
-        }
-            
-        if (!_connectedChannels.TryRemove(channel.Id, out IAudioClient? client)) {
-            return;
-        }
-        
         MusicPlayerMetadata metadata = GetMusicPlayerMetadata(guildId);
         metadata.StopRequested = true;
         metadata.Elapsed = TimeSpan.Zero;
-
-        cts.Cancel();
-        cts.Dispose();
         
-        await client.StopAsync();
-        await channel.DisconnectAsync();
-
+        if (_guildCancellationTokens.TryRemove(guildId, out CancellationTokenSource? cts)) {
+            cts.Cancel();
+            cts.Dispose();
+        }
+        
+        if (_guildChannels.TryGetValue(guildId, out SocketVoiceChannel? channel) &&
+            _connectedChannels.TryRemove(channel.Id, out IAudioClient? client)) {
+            
+            await client.StopAsync();
+            await channel.DisconnectAsync();
+        }
+        
         GetQueue(guildId).Clear();
         metadata.State = MusicPlayerState.Stopped;
         await UpdateSongsQueueAsync(guildId, message: "Queue has been cleared");
@@ -268,13 +262,14 @@ public class DiscordAudioService : IDiscordAudioService
         return client;
     }
 
-    private async Task PlayNextRecord(ConcurrentQueue<AudioQueueRecord> queue, IAudioClient client, ulong guildId, CancellationToken token = default)
+    private async Task PlayNextRecord(ConcurrentQueue<AudioQueueRecord> queue, IAudioClient client, 
+        ulong guildId, string reason, CancellationToken token = default)
     {
         MusicPlayerMetadata metadata = GetMusicPlayerMetadata(guildId);
         metadata.State = MusicPlayerState.Playing;
 
         while (!queue.IsEmpty) {
-            await UpdateSongsQueueAsync(guildId, token: token);
+            await UpdateSongsQueueAsync(guildId, token: token, message: reason);
             
             if (!queue.TryPeek(out AudioQueueRecord? record)) {
                 throw new InvalidOperationException("Error peeking in the audio queue.");
@@ -283,6 +278,20 @@ public class DiscordAudioService : IDiscordAudioService
             Stopwatch watch = new Stopwatch();
             watch.Start();
 
+            if (metadata.ElapsedTimer is not null) {
+                await metadata.ElapsedTimer.DisposeAsync();
+            }
+
+            metadata.ElapsedTimer = new Timer(
+                das => {
+                    metadata.Elapsed = watch.Elapsed;
+                    ((DiscordAudioService)das!).UpdateSongsQueueAsync(guildId, token: default)
+                        .GetAwaiter().GetResult();
+                }, 
+                this, 
+                dueTime: TimeSpan.Zero, 
+                TimeSpan.FromSeconds(record.Duration.GetAwaiter().GetResult().TotalSeconds / 20)); // Bars count
+            
             using (Process ffmpeg = CreateProcess(await record.AudioUrl.Value, metadata.Elapsed, token))
             await using (Stream output = ffmpeg.StandardOutput.BaseStream)
             await using (AudioOutStream? discord = client.CreatePCMStream(AudioApplication.Mixed)) {
@@ -294,6 +303,8 @@ public class DiscordAudioService : IDiscordAudioService
                         await discord.FlushAsync(token);
                     }
 
+                    await metadata.ElapsedTimer.DisposeAsync();
+                    metadata.ElapsedTimer = null;
                     watch.Stop();
                 }
             }

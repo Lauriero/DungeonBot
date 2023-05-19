@@ -31,7 +31,7 @@ public interface IDiscordAudioService
     /// Starts playing the queue.
     /// </summary>
     /// <param name="guildId">Id of the server.</param>
-    Task PlayQueueAsync(ulong guildId);
+    Task PlayQueueAsync(ulong guildId, string reason = "");
 
     /// <summary>
     /// Stops playing the queue.
