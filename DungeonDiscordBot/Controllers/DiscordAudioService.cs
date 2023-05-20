@@ -297,12 +297,19 @@ public class DiscordAudioService : IDiscordAudioService
             await using (AudioOutStream? discord = client.CreatePCMStream(AudioApplication.Mixed)) {
                 try {
                     await output.CopyToAsync(discord, token);
-                } catch (OperationCanceledException) {
-                } finally {
+                } catch (OperationCanceledException) { }
+
+                try {
                     if (!token.IsCancellationRequested) {
                         await discord.FlushAsync(token);
+                    } else {
+                        await discord.FlushAsync();
                     }
-
+                } catch (OperationCanceledException) {
+                    await discord.FlushAsync();
+                }
+                
+                if (metadata.ElapsedTimer is not null) {
                     await metadata.ElapsedTimer.DisposeAsync();
                     metadata.ElapsedTimer = null;
                     watch.Stop();
