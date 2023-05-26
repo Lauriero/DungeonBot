@@ -12,7 +12,7 @@ COPY install-opus-tools.sh ./DungeonDiscordBot/appsettings.Production.json* /App
 # Build runtime image
 FROM mcr.microsoft.com/dotnet/runtime:6.0
 COPY --from=build-env /App/out ./out
-COPY ./out/install-opus-tools.sh ./opt/install-opus-tools.sh
+RUN cp ./out/install-opus-tools.sh ./opt/install-opus-tools.sh
 
 RUN apt-get update
 RUN apt-get -y install libopus-dev

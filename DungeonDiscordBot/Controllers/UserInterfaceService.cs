@@ -130,10 +130,14 @@ public class UserInterfaceService : IUserInterfaceService
             TimeSpan total = await firstRecord.Duration;
             
             int barsProgressed = (int)Math.Floor(elapsed.TotalSeconds * PROGRESS_BARS_COUNT / total.TotalSeconds);
+            if (barsProgressed > PROGRESS_BARS_COUNT) {
+                barsProgressed = PROGRESS_BARS_COUNT;
+            }  
+            
             description = $"🎶 **Now playing:**  ***[{firstRecord.Author} - {firstRecord.Title}](https://google.com/)***\n" +
                           $"{elapsed:mm\\:ss} ‎ ‎‏‏‎‎ " +
-                          (barsProgressed > 0 ? $"[{new String('▰', barsProgressed)}](https://google.com/)" : "") +
-                          $"{new String('▱', PROGRESS_BARS_COUNT - barsProgressed)} ‎ ‎‏‏‎‎ " +
+                          (barsProgressed > 0 ? $"[{new string('▰', barsProgressed)}](https://google.com/)" : "") +
+                          $"{new string('▱', PROGRESS_BARS_COUNT - barsProgressed)} ‎ ‎‏‏‎‎ " +
                           $"{total:mm\\:ss}\n\n" +
                           nextSongsList;
         } else {

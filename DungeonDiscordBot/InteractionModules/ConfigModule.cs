@@ -39,6 +39,7 @@ public class ConfigModule : InteractionModuleBase<SocketInteractionContext>
         SocketTextChannel channel
     ) {
         await MethodWrapper(async () => {
+            await _botService.EnsureBotIsReady(Context.Interaction);
             await DeferAsync();
             await _UIService.CreateSongsQueueMessageAsync(Context.Guild.Id, 
                 _audioService.GetQueue(Context.Guild.Id), 

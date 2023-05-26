@@ -53,6 +53,7 @@ public class MusicModule : InteractionModuleBase<SocketInteractionContext>
     )
     {
         await MethodWrapper(async () => {
+            await _botService.EnsureBotIsReady(Context.Interaction);
             await DeferAsync();
             await EnsureInMusicChannel();
             

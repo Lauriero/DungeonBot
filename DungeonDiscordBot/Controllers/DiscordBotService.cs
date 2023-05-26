@@ -27,6 +27,7 @@ namespace DungeonDiscordBot.Controllers
     public class DiscordBotService : IDiscordBotService
     {
         public int InitializationPriority => 10;
+        public bool IsBotReady => _client.ConnectionState == ConnectionState.Connected;
      
         private readonly ILogger<IDiscordBotService> _logger; 
         private readonly AppSettings _settings;
@@ -102,6 +103,17 @@ namespace DungeonDiscordBot.Controllers
             
 
             _logger.LogInformation("Discord service initialized");
+        }
+
+
+        public async Task EnsureBotIsReady(SocketInteraction interaction)
+        {
+            if (_client.ConnectionState != ConnectionState.Connected) {
+                await interaction.ModifyOriginalResponseAsync(m => 
+                    m.Content = "Bot is not ready to accept this command");
+                throw new InteractionCommandException(interaction, InteractionCommandError.Unsuccessful,
+                    $"Bot was not ready to handle the [{interaction.Id}] interaction");
+            }
         }
 
         public async Task HandleInteractionException(Exception exception)

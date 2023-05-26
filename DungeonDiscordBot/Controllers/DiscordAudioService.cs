@@ -54,7 +54,10 @@ public class DiscordAudioService : IDiscordAudioService
     /// <inheritdoc /> 
     public async Task PlayQueueAsync(ulong guildId, string reason = "")
     {
-        var queue = GetQueue(guildId);
+        MusicPlayerMetadata metadata = GetMusicPlayerMetadata(guildId);
+        if (metadata.State == MusicPlayerState.Playing || metadata.StopRequested) {
+            return;
+        }
         
         CancellationTokenSource cts = new CancellationTokenSource();
         _guildCancellationTokens.AddOrUpdate(guildId,
@@ -62,6 +65,7 @@ public class DiscordAudioService : IDiscordAudioService
             (_, _) => cts); 
         
         IAudioClient client = await ConnectToChannelAsync(guildId);
+        var queue = GetQueue(guildId);
         ThreadPool.QueueUserWorkItem<
             (ConcurrentQueue<AudioQueueRecord>, IAudioClient, ulong, string, CancellationToken)>
             (async (s) => 
@@ -297,18 +301,16 @@ public class DiscordAudioService : IDiscordAudioService
             await using (AudioOutStream? discord = client.CreatePCMStream(AudioApplication.Mixed)) {
                 try {
                     await output.CopyToAsync(discord, token);
-                } catch (OperationCanceledException) { }
-
-                try {
                     if (!token.IsCancellationRequested) {
                         await discord.FlushAsync(token);
                     } else {
                         await discord.FlushAsync();
                     }
                 } catch (OperationCanceledException) {
+                } finally {
                     await discord.FlushAsync();
                 }
-                
+
                 if (metadata.ElapsedTimer is not null) {
                     await metadata.ElapsedTimer.DisposeAsync();
                     metadata.ElapsedTimer = null;
