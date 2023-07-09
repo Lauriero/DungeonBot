@@ -1,10 +1,5 @@
-﻿using System;
-using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.Linq;
+﻿using System.Collections.Concurrent;
 using System.Reflection;
-using System.Threading;
-using System.Threading.Tasks;
 
 using Discord;
 using Discord.Interactions;
@@ -27,8 +22,7 @@ namespace DungeonDiscordBot.Controllers
     public class DiscordBotService : IDiscordBotService
     {
         public int InitializationPriority => 10;
-        public bool IsBotReady => _client.ConnectionState == ConnectionState.Connected;
-     
+
         private readonly ILogger<IDiscordBotService> _logger; 
         private readonly AppSettings _settings;
         private readonly DiscordSocketClient _client;

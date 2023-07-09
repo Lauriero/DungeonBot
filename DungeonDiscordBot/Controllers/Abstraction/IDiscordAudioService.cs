@@ -1,9 +1,4 @@
 ﻿using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.Threading;
-using System.Threading.Tasks;
-
-using ConcurrentLinkedList;
 
 using Discord.WebSocket;
 
@@ -87,7 +82,7 @@ public interface IDiscordAudioService
     /// <summary>
     /// Updates queue message for this server.
     /// </summary>
-    Task UpdateSongsQueueAsync(ulong guildId, int? pageNumber = null, string message = "", CancellationToken token = default);
+    Task UpdateSongsQueueAsync(ulong guildId, string message = "", CancellationToken token = default);
 
     /// <summary>
     /// Shuffles the server queue.

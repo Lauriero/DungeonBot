@@ -1,9 +1,4 @@
-﻿using System;
-using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
+﻿using System.Collections.Concurrent;
 
 using Discord;
 using Discord.Rest;
@@ -68,11 +63,14 @@ public class UserInterfaceService : IUserInterfaceService
         }
 
         SocketTextChannel textChannel = await _botService.GetChannelAsync(guild.MusicChannelId.Value, token);
-        await textChannel.ModifyMessageAsync(guild.MusicMessageId.Value, m => {
-            m.Content = string.IsNullOrEmpty(message) ? new Optional<string>() : message;
-            m.Embed = musicMessage.Embed;
-            m.Components = musicMessage.Components;
-        }, new RequestOptions {CancelToken = token});
+        try {
+            await textChannel.ModifyMessageAsync(guild.MusicMessageId.Value, m => {
+                m.Content = string.IsNullOrEmpty(message) ? new Optional<string>() : message;
+                m.Embed = musicMessage.Embed;
+                m.Components = musicMessage.Components;
+            }, new RequestOptions {CancelToken = token});
+        } catch (OperationCanceledException) {
+        } catch (TimeoutException) { }
     }
 
     private async Task<MessageProperties> GenerateMessageAsync(string guildName, 
@@ -171,19 +169,19 @@ public class UserInterfaceService : IUserInterfaceService
                         new ButtonBuilder {
                             Style = ButtonStyle.Primary,
                             Label = "‎‏‏‎‎‏‏‎ ‎‏‏‎‏‏‎ 🏠‏‎‎‏‏‎ ‎",
-                            CustomId = $"{QueueButtonHandler.QUEUE_HOME_PAGE_BUTTON_ID}",
+                            CustomId = QueueButtonHandler.QUEUE_HOME_PAGE_BUTTON_ID,
                             IsDisabled = pageNumber == 1
                         }.Build(),
                         new ButtonBuilder {
                             Style = ButtonStyle.Primary,
                             Label = "‎‏‏‎ ‎‎‏‏‎ ‎🢠‎‏‏‎ ‎‎‏‏‎ ‎",
-                            CustomId = $"{QueueButtonHandler.QUEUE_PAGE_BUTTON_ID_PREFIX}-{pageNumber - 1}",
+                            CustomId = QueueButtonHandler.QUEUE_PREV_PAGE_BUTTON_ID,
                             IsDisabled = pageNumber <= 1
                         }.Build(),
                         new ButtonBuilder {
                             Style = ButtonStyle.Primary,
                             Label = "‎‏‏‎ ‎‎‏‏‎ ‎🢡‎‏‏‎ ‎‎‏‏‎ ‎",
-                            CustomId = $"{QueueButtonHandler.QUEUE_PAGE_BUTTON_ID_PREFIX}-{pageNumber + 1}",
+                            CustomId = QueueButtonHandler.QUEUE_NEXT_PAGE_BUTTON_ID,
                             IsDisabled = pageNumber >= pagesCount
                         }.Build()
                     }

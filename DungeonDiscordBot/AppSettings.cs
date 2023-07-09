@@ -1,6 +1,4 @@
-﻿using System;
-
-namespace DungeonDiscordBot;
+﻿namespace DungeonDiscordBot;
 
     public class AppSettings
 {

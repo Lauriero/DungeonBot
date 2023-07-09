@@ -1,6 +1,4 @@
-﻿using System;
-
-using Ardalis.SmartEnum;
+﻿using Ardalis.SmartEnum;
 
 using DungeonDiscordBot.MusicProvidersControllers;
 

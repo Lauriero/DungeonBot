@@ -1,6 +1,4 @@
-﻿using System;
-
-namespace DungeonDiscordBot.Exceptions;
+﻿namespace DungeonDiscordBot.Exceptions;
 
 public class MusicChannelNotRegisteredException : Exception
 {

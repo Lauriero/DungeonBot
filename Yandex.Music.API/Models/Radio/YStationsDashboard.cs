@@ -1,5 +1,3 @@
-using System.Collections.Generic;
-
 namespace Yandex.Music.Api.Models.Radio
 {
     public class YStationsDashboard

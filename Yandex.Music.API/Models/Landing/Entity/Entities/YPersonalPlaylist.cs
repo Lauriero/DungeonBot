@@ -1,5 +1,3 @@
-using System.Collections.Generic;
-
 using Yandex.Music.Api.Models.Playlist;
 
 namespace Yandex.Music.Api.Models.Landing.Entity.Entities

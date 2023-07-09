@@ -1,6 +1,4 @@
-﻿using System;
-
-namespace Yandex.Music.Api.Requests.Common
+﻿namespace Yandex.Music.Api.Requests.Common
 {
     /// <summary>
     /// Атрибут запроса без привязки к базовому адресу

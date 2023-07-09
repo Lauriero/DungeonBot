@@ -1,6 +1,4 @@
-﻿using System.Collections.Generic;
-
-namespace Yandex.Music.Api.Common.Debug.Writer
+﻿namespace Yandex.Music.Api.Common.Debug.Writer
 {
     public interface IDebugWriter
     {

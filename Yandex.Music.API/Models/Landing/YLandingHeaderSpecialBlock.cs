@@ -1,6 +1,4 @@
-﻿using Yandex.Music.Api.Models.Common;
-
-namespace Yandex.Music.Api.Models.Landing
+﻿namespace Yandex.Music.Api.Models.Landing
 {
     public class YLandingHeaderSpecialBlock
     {

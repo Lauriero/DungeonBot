@@ -1,6 +1,3 @@
-using System;
-using System.Linq;
-
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 
@@ -48,7 +45,7 @@ namespace Yandex.Music.Api.Models.Landing.Entity
             }
             catch (Exception ex)
             {
-                throw new Exception($"Ошибка десериализации типа \"{jObject["type"]}\".", ex);
+                throw new Exception($"РћС€РёР±РєР° РґРµСЃРµСЂРёР°Р»РёР·Р°С†РёРё С‚РёРїР° \"{jObject["type"]}\".", ex);
             }
 
             return entity;

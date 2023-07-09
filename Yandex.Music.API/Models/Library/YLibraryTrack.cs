@@ -1,5 +1,3 @@
-using System;
-
 namespace Yandex.Music.Api.Models.Library
 {
     public class YLibraryTrack

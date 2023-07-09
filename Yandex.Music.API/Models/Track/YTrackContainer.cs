@@ -1,5 +1,3 @@
-using System;
-
 namespace Yandex.Music.Api.Models.Track
 {
     public class YTrackContainer : IEquatable<YTrackContainer>

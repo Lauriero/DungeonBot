@@ -1,6 +1,4 @@
-﻿using System;
-
-using Yandex.Music.Api.Models.Album;
+﻿using Yandex.Music.Api.Models.Album;
 
 namespace Yandex.Music.Api.Models.Landing.Entity.Entities
 {

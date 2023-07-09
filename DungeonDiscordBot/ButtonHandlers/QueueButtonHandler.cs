@@ -1,7 +1,4 @@
-﻿using System;
-using System.Threading.Tasks;
-
-using Discord.WebSocket;
+﻿using Discord.WebSocket;
 
 using DungeonDiscordBot.Controllers.Abstraction;
 using DungeonDiscordBot.Model;
@@ -14,8 +11,10 @@ public class QueueButtonHandler : IButtonHandler
 {
     public string Prefix => "queue";
     
-    public const string QUEUE_PAGE_BUTTON_ID_PREFIX = "queue-page";
     public const string QUEUE_HOME_PAGE_BUTTON_ID = "queue-home-page";
+
+    public const string QUEUE_PREV_PAGE_BUTTON_ID = "queue-previous-page";
+    public const string QUEUE_NEXT_PAGE_BUTTON_ID = "queue-next-page";
     
     public const string QUEUE_PREV_SONG_BUTTON_ID = "queue-previous-song";
     public const string QUEUE_TOGGLE_STATE_BUTTON_ID = "queue-toggle-state";
@@ -39,16 +38,20 @@ public class QueueButtonHandler : IButtonHandler
     public async Task OnButtonExecuted(SocketMessageComponent component, SocketGuild guild)
     {
         MusicPlayerMetadata metadata = _audioService.GetMusicPlayerMetadata(guild.Id);
-        if (component.Data.CustomId.StartsWith(QUEUE_PAGE_BUTTON_ID_PREFIX)) {
-            int pageNumber = Convert.ToInt32(component.Data.CustomId[
-                (QUEUE_PAGE_BUTTON_ID_PREFIX.Length + 1)..]);
-            await _audioService.UpdateSongsQueueAsync(guild.Id, pageNumber);
-            return;
-        }
-        
         switch (component.Data.CustomId) {
             case QUEUE_HOME_PAGE_BUTTON_ID:
-                await _audioService.UpdateSongsQueueAsync(guild.Id, 1);
+                metadata.PageNumber = 1;
+                await _audioService.UpdateSongsQueueAsync(guild.Id);
+                break;
+            
+            case QUEUE_PREV_PAGE_BUTTON_ID:
+                metadata.PageNumber--;
+                await _audioService.UpdateSongsQueueAsync(guild.Id);
+                break;
+            
+            case QUEUE_NEXT_PAGE_BUTTON_ID:
+                metadata.PageNumber++;
+                await _audioService.UpdateSongsQueueAsync(guild.Id);
                 break;
             
             case QUEUE_PREV_SONG_BUTTON_ID:
@@ -96,5 +99,7 @@ public class QueueButtonHandler : IButtonHandler
                     m.Content = "Command not found");
                 break;
         }
+        
+        await component.ModifyOriginalResponseAsync(m => m.Content = "Command is executed");
     }
 }

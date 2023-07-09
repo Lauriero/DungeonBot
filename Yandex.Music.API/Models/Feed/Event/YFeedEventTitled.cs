@@ -1,6 +1,4 @@
-﻿using System.Collections.Generic;
-
-namespace Yandex.Music.Api.Models.Feed.Event
+﻿namespace Yandex.Music.Api.Models.Feed.Event
 {
     public class YFeedEventTitled: YFeedEvent
     {

@@ -1,6 +1,4 @@
-﻿using System.Collections.Generic;
-
-namespace Yandex.Music.Api.Models.Account
+﻿namespace Yandex.Music.Api.Models.Account
 {
     public class YAuthLetter : YAuthBase
     {

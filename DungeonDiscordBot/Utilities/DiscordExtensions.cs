@@ -1,6 +1,4 @@
-﻿using DungeonDiscordBot.Controllers.Abstraction;
-
-namespace DungeonDiscordBot.Utilities;
+﻿namespace DungeonDiscordBot.Utilities;
 
 public static class DiscordExtensions
 {

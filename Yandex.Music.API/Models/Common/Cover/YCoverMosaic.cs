@@ -1,5 +1,3 @@
-using System.Collections.Generic;
-
 namespace Yandex.Music.Api.Models.Common.Cover
 {
     public class YCoverMosaic : YCover

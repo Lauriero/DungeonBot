@@ -1,5 +1,3 @@
-using System;
-
 using Newtonsoft.Json;
 
 using Yandex.Music.Api.Common;

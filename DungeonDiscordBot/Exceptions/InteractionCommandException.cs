@@ -1,6 +1,4 @@
-﻿using System;
-
-using Discord.Interactions;
+﻿using Discord.Interactions;
 using Discord.WebSocket;
 
 namespace DungeonDiscordBot.Exceptions;

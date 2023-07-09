@@ -1,11 +1,5 @@
-﻿using System;
-using System.Collections.Concurrent;
-using System.Collections.Generic;
+﻿using System.Collections.Concurrent;
 using System.Diagnostics;
-using System.IO;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
 
 using Discord;
 using Discord.Audio;
@@ -55,7 +49,8 @@ public class DiscordAudioService : IDiscordAudioService
     public async Task PlayQueueAsync(ulong guildId, string reason = "")
     {
         MusicPlayerMetadata metadata = GetMusicPlayerMetadata(guildId);
-        if (metadata.State == MusicPlayerState.Playing || metadata.StopRequested) {
+        if (metadata.State == MusicPlayerState.Playing && !metadata.StopRequested) {
+            await UpdateSongsQueueAsync(guildId, message: reason);
             return;
         }
         
@@ -131,20 +126,20 @@ public class DiscordAudioService : IDiscordAudioService
     
     public async Task SkipTrackAsync(ulong guildId)
     {
-        if (!_guildCancellationTokens.TryRemove(guildId, out CancellationTokenSource? cts)) {
+        MusicPlayerMetadata metadata = GetMusicPlayerMetadata(guildId);
+        if (metadata.StopRequested) {
             return;
         }
 
-        if (!_guildChannels.TryGetValue(guildId, out SocketVoiceChannel? channel)) {
-            throw new ArgumentException("No voice channels are registered for this server", nameof(guildId));
-        }
-
-        MusicPlayerMetadata metadata = GetMusicPlayerMetadata(guildId);
         metadata.StopRequested = true;
         metadata.Elapsed = TimeSpan.Zero;
         
-        cts.Cancel();
-        cts.Dispose();
+        if (metadata.State == MusicPlayerState.Playing) {
+            if (_guildCancellationTokens.TryRemove(guildId, out CancellationTokenSource? cts)) {
+                cts.Cancel();
+                cts.Dispose();
+            }
+        }
         
         if (!GetQueue(guildId).TryDequeue(out AudioQueueRecord? _)) {
             throw new InvalidOperationException("Error dequeuing audio from the queue.");
@@ -372,13 +367,9 @@ public class DiscordAudioService : IDiscordAudioService
         await ClearQueue(guildId);
     }
 
-    public Task UpdateSongsQueueAsync(ulong guildId, int? pageNumber = null, string message = "", CancellationToken token = default)
+    public Task UpdateSongsQueueAsync(ulong guildId, string message = "", CancellationToken token = default)
     {
         MusicPlayerMetadata metadata = GetMusicPlayerMetadata(guildId);
-        if (pageNumber is not null) {
-            metadata.PageNumber = pageNumber.Value;
-        }
-        
         return _UIService.UpdateSongsQueueMessageAsync(guildId, GetQueue(guildId), 
             metadata, message, token);
     }

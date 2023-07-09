@@ -1,8 +1,4 @@
-﻿using System;
-using System.Net.Http;
-using System.Threading.Tasks;
-
-namespace Yandex.Music.Api.Common.Providers
+﻿namespace Yandex.Music.Api.Common.Providers
 {
     /// <summary>
     /// Провайдер запросов данными из файла

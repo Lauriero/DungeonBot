@@ -1,7 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-
-using Newtonsoft.Json;
+﻿using Newtonsoft.Json;
 
 using Yandex.Music.Api.Models.Feed.Event;
 using Yandex.Music.Api.Models.Track;

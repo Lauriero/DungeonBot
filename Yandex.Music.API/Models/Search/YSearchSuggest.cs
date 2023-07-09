@@ -1,5 +1,3 @@
-using System.Collections.Generic;
-
 namespace Yandex.Music.Api.Models.Search
 {
     public class YSearchSuggest

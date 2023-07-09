@@ -15,10 +15,7 @@ COPY --from=build-env /App/out ./out
 RUN cp ./out/install-opus-tools.sh ./opt/install-opus-tools.sh
 
 RUN apt-get update
-RUN apt-get -y install libopus-dev
-RUN apt-get -y install libsodium-dev
-
-RUN apt-get install -y libsodium-dev ffmpeg tcpreplay libpcap-dev pkg-config libssl-dev && \
+RUN apt-get install -y libopus-dev libsodium-dev ffmpeg tcpreplay libpcap-dev pkg-config libssl-dev && \
     apt-get install -y build-essential file && \
     cd opt && \
     bash install-opus-tools.sh && \

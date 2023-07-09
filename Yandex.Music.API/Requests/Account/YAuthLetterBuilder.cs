@@ -1,7 +1,5 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Net;
-using System.Net.Http;
+﻿using System.Net;
+
 using Yandex.Music.Api.Common;
 using Yandex.Music.Api.Requests.Common;
 

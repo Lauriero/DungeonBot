@@ -1,19 +1,11 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text.RegularExpressions;
-using System.Threading.Tasks;
+﻿using System.Text.RegularExpressions;
 
 using DungeonDiscordBot.Model;
 
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Logging;
 
-using VkNet;
 using VkNet.Abstractions;
-using VkNet.AudioBypassService.Extensions;
-using VkNet.Model;
 using VkNet.Model.Attachments;
 using VkNet.Model.RequestParams;
 using VkNet.Utils;
@@ -38,14 +30,14 @@ public class VkMusicProviderController : BaseMusicProviderController
     {
         _logger.LogInformation("Initializing VKMusic provider...");
 
-        ServiceCollection services = new ServiceCollection();
-        services.AddAudioBypass();
-        
-        _api = new VkApi(services);   
-        await _api.AuthorizeAsync(new ApiAuthParams {
-            Login = _settings.VKLogin,
-            Password = _settings.VKPassword,
-        });
+        // ServiceCollection services = new ServiceCollection();
+        // services.AddAudioBypass();
+        //
+        // _api = new VkApi(services);   
+        // await _api.AuthorizeAsync(new ApiAuthParams {
+        //     Login = _settings.VKLogin,
+        //     Password = _settings.VKPassword,
+        // });
         
         _logger.LogInformation("VKMusic provider initialized");
     }

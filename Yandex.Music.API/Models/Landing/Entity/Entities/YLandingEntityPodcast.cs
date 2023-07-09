@@ -1,6 +1,4 @@
-﻿using System;
-
-namespace Yandex.Music.Api.Models.Landing.Entity.Entities
+﻿namespace Yandex.Music.Api.Models.Landing.Entity.Entities
 {
     public class YLandingEntityPodcast: YLandingEntity
     {

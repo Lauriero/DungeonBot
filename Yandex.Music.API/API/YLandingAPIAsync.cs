@@ -1,6 +1,4 @@
-﻿using System.Threading.Tasks;
-
-using Yandex.Music.Api.Common;
+﻿using Yandex.Music.Api.Common;
 using Yandex.Music.Api.Models.Common;
 using Yandex.Music.Api.Models.Feed;
 using Yandex.Music.Api.Models.Landing;

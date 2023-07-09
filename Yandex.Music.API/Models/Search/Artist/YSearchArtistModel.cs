@@ -1,5 +1,3 @@
-using System.Collections.Generic;
-
 using Yandex.Music.Api.Models.Artist;
 using Yandex.Music.Api.Models.Search.Track;
 

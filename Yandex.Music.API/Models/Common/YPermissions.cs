@@ -1,6 +1,3 @@
-using System;
-using System.Collections.Generic;
-
 namespace Yandex.Music.Api.Models.Common
 {
     public class YPermissions

@@ -1,6 +1,4 @@
-﻿using System.Collections.Generic;
-
-using Yandex.Music.Api.Models.Track;
+﻿using Yandex.Music.Api.Models.Track;
 
 namespace Yandex.Music.Api.Models.Feed.Event
 {

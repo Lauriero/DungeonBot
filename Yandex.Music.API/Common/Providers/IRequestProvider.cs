@@ -1,7 +1,4 @@
-﻿using System.Net.Http;
-using System.Threading.Tasks;
-
-namespace Yandex.Music.Api.Common.Providers
+﻿namespace Yandex.Music.Api.Common.Providers
 {
     /// <summary>
     /// Интерфейс для провайдеров обработки запросов

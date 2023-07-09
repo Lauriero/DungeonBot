@@ -1,8 +1,5 @@
-using System;
-using System.Net.Http;
 using System.Security.Authentication;
 using System.Text.RegularExpressions;
-using System.Threading.Tasks;
 
 using Yandex.Music.Api.Common;
 using Yandex.Music.Api.Models.Account;

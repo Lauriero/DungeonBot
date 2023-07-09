@@ -1,6 +1,5 @@
 ﻿using System.Collections.Specialized;
 using System.Net;
-using System.Net.Http;
 
 using Yandex.Music.Api.Common;
 using Yandex.Music.Api.Requests.Common;

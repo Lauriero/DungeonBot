@@ -1,6 +1,3 @@
-using System.Net.Http;
-using System.Threading.Tasks;
-
 using Yandex.Music.Api.Common;
 using Yandex.Music.Api.Common.Providers;
 

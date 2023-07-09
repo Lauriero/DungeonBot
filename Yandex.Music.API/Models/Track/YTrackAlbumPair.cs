@@ -1,6 +1,3 @@
-using System;
-using System.Linq;
-
 namespace Yandex.Music.Api.Models.Track
 {
     public class YTrackAlbumPair : IEquatable<YTrackAlbumPair>
