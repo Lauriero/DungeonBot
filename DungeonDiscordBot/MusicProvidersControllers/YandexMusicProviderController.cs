@@ -42,10 +42,10 @@ public class YandexMusicProviderController : BaseMusicProviderController
 
     public override async Task<IEnumerable<AudioQueueRecord>> GetAudiosFromLinkAsync(Uri link, int count)
     {
-        Regex albumRegex = new Regex(@"^.+/album/(\d+)(/*?)$");
-        Regex trackRegex = new Regex(@"^.+/album/(\d+)/track/(\d+)(/*?)$");
-        Regex artistRegex = new Regex(@"^.+/artist/(\d+)(/*?)$");  
-        Regex userPlaylistRegex = new Regex(@"^.+/users/(\w+)/playlists/(\d+)(/*?)$");
+        Regex albumRegex = new Regex(@"^.+/album/(\d+)([?/]?)(.*)$");
+        Regex trackRegex = new Regex(@"^.+/album/(\d+)/track/(\d+)([?/]?)(.*)$");
+        Regex artistRegex = new Regex(@"^.+/artist/(\d+)([?/]?)(.*)$");  
+        Regex userPlaylistRegex = new Regex(@"^.+/users/(\w+)/playlists/(\d+)([?/]?)(.*)$");
         
         string url = link.AbsoluteUri;
         Match albumMatch = albumRegex.Match(url);

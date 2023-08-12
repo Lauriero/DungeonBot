@@ -10,8 +10,6 @@ using VkNet;
 using VkNet.Abstractions;
 using VkNet.AudioBypassService.Extensions;
 using VkNet.Model;
-using VkNet.Model.Attachments;
-using VkNet.Model.RequestParams;
 using VkNet.Utils;
 
 namespace DungeonDiscordBot.MusicProvidersControllers;

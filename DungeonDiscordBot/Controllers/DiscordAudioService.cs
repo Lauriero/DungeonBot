@@ -10,6 +10,7 @@ using DungeonDiscordBot.Model;
 using DungeonDiscordBot.Utilities;
 
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace DungeonDiscordBot.Controllers;
 
@@ -18,16 +19,18 @@ public class DiscordAudioService : IDiscordAudioService
     private readonly ILogger<IDiscordAudioService> _logger;
     private readonly IUserInterfaceService _UIService;
 
+    private readonly AppSettings _settings;
     private readonly ConcurrentDictionary<ulong, SocketVoiceChannel> _guildChannels = new();
     private readonly ConcurrentDictionary<ulong, IAudioClient> _connectedChannels = new();
     private readonly ConcurrentDictionary<ulong, ConcurrentQueue<AudioQueueRecord>> _guildQueues = new();
     private readonly ConcurrentDictionary<ulong, CancellationTokenSource> _guildCancellationTokens = new();
     private readonly ConcurrentDictionary<ulong, MusicPlayerMetadata> _guildMetadatas = new();
 
-    public DiscordAudioService(ILogger<IDiscordAudioService> logger, IUserInterfaceService uiService)
+    public DiscordAudioService(ILogger<IDiscordAudioService> logger, IUserInterfaceService uiService, IOptions<AppSettings> settings)
     {
         _logger = logger;
         _UIService = uiService;
+        _settings = settings.Value;
     }
     
     /// <inheritdoc /> 
@@ -378,9 +381,9 @@ public class DiscordAudioService : IDiscordAudioService
     {
         Process? process = Process.Start(new ProcessStartInfo
         {
-            FileName = "ffmpeg",
-            Arguments = $"-hide_banner -i \"{path}\" -ac 2 -f s16le " +
-                        $"-ss {startTime:hh\\:mm\\:ss} -ar 48000 -http_persistent false pipe:1",
+            FileName = _settings.FFMpegExecutable,
+            Arguments = $"-hide_banner -i \"{path}\" -ac 2 -f s16le -loglevel debug " +
+                        $"-ss {startTime:hh\\:mm\\:ss} -ar 48000 pipe:1",
             UseShellExecute = false,
             RedirectStandardOutput = true
         });

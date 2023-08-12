@@ -10,4 +10,6 @@
     public string DiscordBotToken { get; set; } = String.Empty;
     
     public string DBConnectionString { get; set; } = String.Empty;
+    
+    public string FFMpegExecutable { get; set; } = String.Empty;
 }
