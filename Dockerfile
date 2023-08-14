@@ -15,7 +15,7 @@ COPY --from=build-env /App/out ./out
 RUN cp ./out/install-opus-tools.sh ./opt/install-opus-tools.sh
 
 RUN apt-get update
-RUN apt-get install -y libopus-dev libsodium-dev tcpreplay libpcap-dev pkg-config libssl-dev && \
+RUN apt-get install -y wget libopus-dev libsodium-dev tcpreplay libpcap-dev pkg-config libssl-dev && \
     apt-get install -y build-essential file && \
     cd opt && \
     bash install-opus-tools.sh && \
@@ -28,6 +28,5 @@ RUN wget -O ffmpeg_build.tar.xz https://www.johnvansickle.com/ffmpeg/old-release
     rm ffmpeg_build.tar.xz && \
     mv ffmpeg-3.3.4-64bit-static ffmpeg && \
     chmod +x ./ffmpeg/ffmpeg
-    
 
 ENTRYPOINT ["dotnet", "DungeonDiscordBot.dll"]
