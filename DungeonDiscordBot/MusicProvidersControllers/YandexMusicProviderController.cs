@@ -88,6 +88,7 @@ public class YandexMusicProviderController : BaseMusicProviderController
             records.Add(new AudioQueueRecord(
                 author:          track.Artists.First().Name, 
                 title:           track.Title,
+                duration:        TimeSpan.FromMilliseconds(track.DurationMs),
                 audioUriFactory: () => _api.Track.GetFileLinkAsync(_apiAuth, track),
                 audioThumbnailUriFactory: () => track.CoverUri is null 
                     ? Task.FromResult<string?>(null) 
@@ -109,6 +110,7 @@ public class YandexMusicProviderController : BaseMusicProviderController
         return new AudioQueueRecord(
                 author:          track.Artists.First().Name, 
                 title:           track.Title,
+                duration:        TimeSpan.FromMilliseconds(track.DurationMs),
                 audioUriFactory: () => _api.Track.GetFileLinkAsync(_apiAuth, track),
                 audioThumbnailUriFactory: () => track.CoverUri is null 
                     ? Task.FromResult<string?>(null) 

@@ -25,7 +25,9 @@ RUN apt-get install -y libopus-dev libsodium-dev tcpreplay libpcap-dev pkg-confi
 WORKDIR /out
 RUN wget -O ffmpeg_build.tar.xz https://www.johnvansickle.com/ffmpeg/old-releases/ffmpeg-3.3.4-64bit-static.tar.xz && \
     tar -xf ffmpeg_build.tar.xz && \
+    rm ffmpeg_build.tar.xz && \
     mv ffmpeg-3.3.4-64bit-static ffmpeg && \
     chmod +x ./ffmpeg/ffmpeg
+    
 
 ENTRYPOINT ["dotnet", "DungeonDiscordBot.dll"]

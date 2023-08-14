@@ -125,7 +125,7 @@ public class UserInterfaceService : IUserInterfaceService
                           "```";
         } else if (firstRecord is not null) {
             TimeSpan elapsed = playerMetadata.Elapsed;
-            TimeSpan total = await firstRecord.Duration;
+            TimeSpan total = firstRecord.Duration;
             
             int barsProgressed = (int)Math.Floor(elapsed.TotalSeconds * PROGRESS_BARS_COUNT / total.TotalSeconds);
             if (barsProgressed > PROGRESS_BARS_COUNT) {

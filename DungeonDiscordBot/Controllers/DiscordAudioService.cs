@@ -292,7 +292,7 @@ public class DiscordAudioService : IDiscordAudioService
                 }, 
                 this, 
                 dueTime: TimeSpan.Zero, 
-                TimeSpan.FromSeconds(record.Duration.GetAwaiter().GetResult().TotalSeconds / 20)); // Bars count
+                TimeSpan.FromSeconds(record.Duration.TotalSeconds / 20)); // Bars count
             
             using (Process ffmpeg = CreateProcess(await record.AudioUrl.Value, metadata.Elapsed, token))
             await using (Stream output = ffmpeg.StandardOutput.BaseStream)
@@ -382,7 +382,7 @@ public class DiscordAudioService : IDiscordAudioService
         Process? process = Process.Start(new ProcessStartInfo
         {
             FileName = _settings.FFMpegExecutable,
-            Arguments = $"-hide_banner -i \"{path}\" -ac 2 -f s16le -loglevel debug " +
+            Arguments = $"-hide_banner -i \"{path}\" -ac 2 -f s16le " +
                         $"-ss {startTime:hh\\:mm\\:ss} -ar 48000 pipe:1",
             UseShellExecute = false,
             RedirectStandardOutput = true
