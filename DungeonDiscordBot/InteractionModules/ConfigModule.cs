@@ -1,8 +1,10 @@
-﻿using Discord.Interactions;
+﻿using Discord;
+using Discord.Interactions;
 using Discord.WebSocket;
 
 using DungeonDiscordBot.Controllers;
 using DungeonDiscordBot.Controllers.Abstraction;
+using DungeonDiscordBot.Utilities;
 
 using Microsoft.Extensions.Logging;
 
@@ -10,6 +12,8 @@ using RunMode = Discord.Interactions.RunMode;
 
 namespace DungeonDiscordBot.InteractionModules;
 
+[DefaultMemberPermissions(GuildPermission.Administrator)]
+[EnabledInDm(false)]
 public class ConfigModule : InteractionModuleBase<SocketInteractionContext>
 {
     private readonly ILogger<ConfigModule> _logger;
@@ -17,8 +21,17 @@ public class ConfigModule : InteractionModuleBase<SocketInteractionContext>
     private readonly ISettingsService _settingsService;
     private readonly IDiscordAudioService _audioService;
     private readonly IUserInterfaceService _UIService;
-    
-    public ConfigModule(ILogger<ConfigModule> logger, IDiscordAudioService audioService, IDiscordBotService botService, ISettingsService settingsService, IUserInterfaceService uiService)
+
+    private readonly ChannelPermission[] _musicControlChannelPermissions = {
+        ChannelPermission.SendMessages,
+        ChannelPermission.ManageMessages,
+        ChannelPermission.ReadMessageHistory,
+        ChannelPermission.UseExternalEmojis,
+        ChannelPermission.EmbedLinks
+    };
+
+    public ConfigModule(ILogger<ConfigModule> logger, IDiscordAudioService audioService, IDiscordBotService botService,
+        ISettingsService settingsService, IUserInterfaceService uiService)
     {
         _logger = logger;
         _botService = botService;
@@ -26,18 +39,29 @@ public class ConfigModule : InteractionModuleBase<SocketInteractionContext>
         _settingsService = settingsService;
         _UIService = uiService;
     }
-    
-    [SlashCommand(
-        name: "register-music-channel",
+
+    [SlashCommand(name: "register-music-channel",
         description: "Registers a channel that will be used to control music",
         runMode: RunMode.Async)]
-    public async Task RegisterMusicAsync(
+    [RequireRole(UserRoles.DUNGEON_MASTER_USER_ROLE)]
+    [RequireBotPermission(ChannelPermission.SendMessages | ChannelPermission.UseExternalEmojis)]
+    public async Task RegisterMusicChannelAsync(
         [Summary("channel", "The channel to control music, new messages in this channel will be removed!")]
         SocketTextChannel channel
     ) {
         await MethodWrapper(async () => {
             await _botService.EnsureBotIsReady(Context.Interaction);
             await DeferAsync();
+
+            if (!channel.CheckChannelPermissions(_musicControlChannelPermissions)) {
+                MessageProperties missingPermissionsMessage = _UIService.GenerateMissingPermissionsMessage(
+                    $"Bot should have following permissions in the channel <#{channel.Id}> in order to register it as a control channel",
+                    _musicControlChannelPermissions,
+                    channel);
+                await ModifyOriginalResponseAsync(m => m.ApplyMessageProperties(missingPermissionsMessage));
+                return;
+            }
+            
             await _UIService.CreateSongsQueueMessageAsync(Context.Guild.Id, 
                 _audioService.GetQueue(Context.Guild.Id), 
                 _audioService.CreateMusicPlayerMetadata(Context.Guild.Id), channel);

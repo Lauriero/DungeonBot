@@ -54,6 +54,7 @@ public class YandexMusicProviderController : BaseMusicProviderController
         Match userPlaylistMatch = userPlaylistRegex.Match(url);
 
         IEnumerable<YTrack> tracks;
+        // #TODO: Handle exception when unable to find playlist
         if (userPlaylistMatch.Success) {
             var playlist = await _api.Playlist.GetAsync(_apiAuth, userPlaylistMatch.Groups[1].Value,
                 userPlaylistMatch.Groups[2].Value);

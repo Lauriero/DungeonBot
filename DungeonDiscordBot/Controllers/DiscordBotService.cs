@@ -109,7 +109,7 @@ namespace DungeonDiscordBot.Controllers
                     $"Bot was not ready to handle the [{interaction.Id}] interaction");
             }
         }
-
+        
         public async Task HandleInteractionException(Exception exception)
         {
             _logger.LogError(exception, "Interaction was executed with an exception");

@@ -36,11 +36,11 @@ public class VkMusicProviderController : BaseMusicProviderController
         services.AddAudioBypass();
         
         _api = new VkApi(services);   
-        await _api.AuthorizeAsync(new ApiAuthParams {
-            Login = _settings.VKLogin,
-            Password = _settings.VKPassword,
-        });
-        
+        // await _api.AuthorizeAsync(new ApiAuthParams {
+        //     Login = _settings.VKLogin,
+        //     Password = _settings.VKPassword,
+        // });
+        //
         _logger.LogInformation("VKMusic provider initialized");
     }
 

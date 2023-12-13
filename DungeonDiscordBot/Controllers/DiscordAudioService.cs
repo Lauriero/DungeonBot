@@ -1,4 +1,5 @@
-﻿using System.Collections.Concurrent;
+﻿using System.Collections;
+using System.Collections.Concurrent;
 using System.Diagnostics;
 
 using Discord;
@@ -38,13 +39,29 @@ public class DiscordAudioService : IDiscordAudioService
     {
         GetQueue(guildId).Enqueue(audio);
     }
-    
+
     /// <inheritdoc /> 
-    public void AddAudios(ulong guildId, IEnumerable<AudioQueueRecord> audios)
+    public void AddAudios(ulong guildId, IEnumerable<AudioQueueRecord> audios, bool addToHead = false)
     {
         var queue = GetQueue(guildId);
+        if (!addToHead || queue.Count is 0 or 1) {
+            foreach (AudioQueueRecord audio in audios) {
+                queue.Enqueue(audio);
+            }
+
+            return;
+        }
+
+        List<AudioQueueRecord> queueContents = new List<AudioQueueRecord>(queue);
+
+        queue.Clear();
+        queue.Enqueue(queueContents.First());
         foreach (AudioQueueRecord audio in audios) {
             queue.Enqueue(audio);
+        }
+        
+        for (int i = 1; i < queueContents.Count; i++) {
+            queue.Enqueue(queueContents[i]);
         }
     }
 
@@ -157,7 +174,7 @@ public class DiscordAudioService : IDiscordAudioService
         MusicPlayerMetadata metadata = GetMusicPlayerMetadata(guildId);
         metadata.StopRequested = true;
         metadata.Elapsed = TimeSpan.Zero;
-        
+
         if (_guildCancellationTokens.TryRemove(guildId, out CancellationTokenSource? cts)) {
             cts.Cancel();
             cts.Dispose();
@@ -281,18 +298,20 @@ public class DiscordAudioService : IDiscordAudioService
             watch.Start();
 
             if (metadata.ElapsedTimer is not null) {
-                await metadata.ElapsedTimer.DisposeAsync();
+                metadata.ElapsedTimer.Change(TimeSpan.FromSeconds(record.Duration.TotalSeconds / 20), 
+                    TimeSpan.FromSeconds(record.Duration.TotalSeconds / 20));
+                ;
+            } else {
+                metadata.ElapsedTimer = new Timer(
+                    das => {
+                        metadata.Elapsed = watch.Elapsed;
+                        ((DiscordAudioService)das!).UpdateSongsQueueAsync(guildId, token: default)
+                            .GetAwaiter().GetResult();
+                    }, 
+                    this, 
+                    dueTime: TimeSpan.FromSeconds(record.Duration.TotalSeconds / 20), 
+                    TimeSpan.FromSeconds(record.Duration.TotalSeconds / 20)); // Bars count
             }
-
-            metadata.ElapsedTimer = new Timer(
-                das => {
-                    metadata.Elapsed = watch.Elapsed;
-                    ((DiscordAudioService)das!).UpdateSongsQueueAsync(guildId, token: default)
-                        .GetAwaiter().GetResult();
-                }, 
-                this, 
-                dueTime: TimeSpan.Zero, 
-                TimeSpan.FromSeconds(record.Duration.TotalSeconds / 20)); // Bars count
             
             using (Process ffmpeg = CreateProcess(await record.AudioUrl.Value, metadata.Elapsed, token))
             await using (Stream output = ffmpeg.StandardOutput.BaseStream)
@@ -310,8 +329,7 @@ public class DiscordAudioService : IDiscordAudioService
                 }
 
                 if (metadata.ElapsedTimer is not null) {
-                    await metadata.ElapsedTimer.DisposeAsync();
-                    metadata.ElapsedTimer = null;
+                    metadata.ElapsedTimer.Change(Timeout.Infinite, Timeout.Infinite);
                     watch.Stop();
                 }
             }

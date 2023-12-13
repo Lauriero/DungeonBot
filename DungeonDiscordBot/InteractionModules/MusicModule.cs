@@ -1,5 +1,6 @@
 ﻿using System.Collections.Concurrent;
 
+using Discord;
 using Discord.Audio;
 using Discord.Interactions;
 using Discord.WebSocket;
@@ -24,13 +25,19 @@ public class MusicModule : InteractionModuleBase<SocketInteractionContext>
     private readonly IDiscordBotService _botService;
     private readonly ISettingsService _settingsService;
     private readonly IDiscordAudioService _audioService;
+    private readonly IUserInterfaceService _UIService;
     
-    public MusicModule(ILogger<MusicModule> logger, IDiscordAudioService audioService, IDiscordBotService botService, ISettingsService settingsService)
+    private readonly ChannelPermission[] _voiceChannelPermissions = {
+        ChannelPermission.Speak,
+    };
+    
+    public MusicModule(ILogger<MusicModule> logger, IDiscordAudioService audioService, IDiscordBotService botService, ISettingsService settingsService, IUserInterfaceService uiService)
     {
         _logger = logger;
         _botService = botService;
         _audioService = audioService;
         _settingsService = settingsService;
+        _UIService = uiService;
     }
 
     [SlashCommand(
@@ -45,7 +52,10 @@ public class MusicModule : InteractionModuleBase<SocketInteractionContext>
         MusicProvider? provider = null,
         
         [Summary("quantity", "Number of tracks that should be fetched")]
-        int quantity = -1
+        int quantity = -1,
+        
+        [Summary("now", "Flag to put the fetched songs in the head of the playlist")]
+        bool now = false
     )
     {
         await MethodWrapper(async () => {
@@ -56,6 +66,15 @@ public class MusicModule : InteractionModuleBase<SocketInteractionContext>
             SocketVoiceChannel? targetChannel = GetVoiceChannelWithCurrentUser();
             if (targetChannel is null) {
                 await ModifyOriginalResponseAsync(m => m.Content = "User is not found in any of the voice channels");
+                return;
+            }
+
+            if (!targetChannel.CheckChannelPermissions(_voiceChannelPermissions)) {
+                MessageProperties missingPermissionsMessage = _UIService.GenerateMissingPermissionsMessage(
+                    $"Bot should have following permissions in the channel <#{targetChannel.Id}> in order to play music",
+                    _voiceChannelPermissions,
+                    targetChannel);
+                await ModifyOriginalResponseAsync(m => m.ApplyMessageProperties(missingPermissionsMessage));
                 return;
             }
             
@@ -111,7 +130,7 @@ public class MusicModule : InteractionModuleBase<SocketInteractionContext>
             }
             
             _audioService.RegisterChannel(Context.Guild, targetChannel.Id);
-            _audioService.AddAudios(Context.Guild.Id, records);
+            _audioService.AddAudios(Context.Guild.Id, records, now);
             await _audioService.PlayQueueAsync(Context.Guild.Id, message);
         });
     }

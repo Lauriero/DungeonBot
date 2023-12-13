@@ -1,4 +1,7 @@
 ﻿using System.Collections.Concurrent;
+using System.Text;
+
+using CaseConverter;
 
 using Discord;
 using Discord.Rest;
@@ -9,6 +12,7 @@ using DungeonDiscordBot.Controllers.Abstraction;
 using DungeonDiscordBot.Exceptions;
 using DungeonDiscordBot.Model;
 using DungeonDiscordBot.Model.Database;
+using DungeonDiscordBot.Utilities;
 
 using Microsoft.Extensions.DependencyInjection;
 
@@ -43,7 +47,12 @@ public class UserInterfaceService : IUserInterfaceService
         
         MessageProperties musicMessage = await GenerateMessageAsync(guild.Name, queue, playerMetadata);
         RestUserMessage message = await musicChannel.SendMessageAsync("", 
-            embed: musicMessage.Embed.Value, components: musicMessage.Components.Value);
+            embed: musicMessage.Embed.Value, 
+            components: musicMessage.Components.Value,
+            options: new RequestOptions {
+                CancelToken = token,
+                RetryMode = RetryMode.Retry502 | RetryMode.RetryTimeouts
+            });
 
         await _settingsService.RegisterMusicChannel(guildId, musicChannel.Id, message.Id, token);
     }
@@ -68,7 +77,10 @@ public class UserInterfaceService : IUserInterfaceService
                 m.Content = string.IsNullOrEmpty(message) ? new Optional<string>() : message;
                 m.Embed = musicMessage.Embed;
                 m.Components = musicMessage.Components;
-            }, new RequestOptions {CancelToken = token});
+            }, new RequestOptions {
+                CancelToken = token,
+                RetryMode = RetryMode.Retry502 | RetryMode.RetryTimeouts
+            }); 
         } catch (OperationCanceledException) {
         } catch (TimeoutException) { }
     }
@@ -86,17 +98,17 @@ public class UserInterfaceService : IUserInterfaceService
         string embedTitle;
         switch (playerMetadata.State) {
             case MusicPlayerState.Stopped:
-                embedColor = new Color(220, 16, 71);   
+                embedColor = EmbedColors.Error;   
                 embedTitle = $"No party in {guildName}";
                 break;
 
             case MusicPlayerState.Paused:
-                embedColor = new Color(235, 173, 15);
+                embedColor = EmbedColors.Paused;
                 embedTitle = $"DJ went out for a smoke break in {guildName}";
                 break;
 
             case MusicPlayerState.Playing:
-                embedColor = new Color(14, 189, 17);
+                embedColor = EmbedColors.OK;
                 embedTitle = $"Dungeon party is started in {guildName}";
                 break;
 
@@ -268,5 +280,37 @@ public class UserInterfaceService : IUserInterfaceService
         properties.Components = componentBuilder.Build();
 
         return properties;
+    }
+
+    public MessageProperties GenerateMissingPermissionsMessage(
+        string description,
+        ChannelPermission[] requiredPermissions,
+        SocketGuildChannel channel)
+    {
+        ChannelPermissions channelPermissions = channel.Guild.CurrentUser.GetPermissions(channel);
+        StringBuilder embedDescriptionBuilder = new StringBuilder();
+        foreach (ChannelPermission requiredPermission in requiredPermissions) {
+            embedDescriptionBuilder.Append(channelPermissions.Has(requiredPermission) ? Emojis.CORRECT : Emojis.INCORRECT);
+            embedDescriptionBuilder.Append($" **{Enum.GetName(requiredPermission).SplitCamelCase().ToLower().FirstCharToUpperCase()}**");
+            embedDescriptionBuilder.AppendLine();
+        }
+        
+        MessageProperties properties = new MessageProperties();
+        properties.Embed = new EmbedBuilder()
+            .WithColor(EmbedColors.Error)
+            .WithAuthor(channel.Guild.CurrentUser)
+            .WithCurrentTimestamp()
+            .WithTitle(description)
+            .WithDescription(embedDescriptionBuilder.ToString())
+            .Build();
+
+        return properties;
+    }
+
+    private static class EmbedColors
+    {
+        public static readonly Color OK = new Color(14, 189, 17);
+        public static readonly Color Error = new Color(220, 16, 71);
+        public static readonly Color Paused = new Color(235, 173, 15);
     }
 }

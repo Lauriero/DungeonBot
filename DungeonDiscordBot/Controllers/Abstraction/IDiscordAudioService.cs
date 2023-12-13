@@ -20,7 +20,8 @@ public interface IDiscordAudioService
     /// </summary>
     /// <param name="guildId">Id of the server.</param>
     /// <param name="audios">Song data.</param>
-    void AddAudios(ulong guildId, IEnumerable<AudioQueueRecord> audios);
+    /// <param name="addToHead">Flat that indicates whether audios should be put in the head or the the tail of the queue</param>
+    void AddAudios(ulong guildId, IEnumerable<AudioQueueRecord> audios, bool addToHead);
 
     /// <summary>
     /// Starts playing the queue.

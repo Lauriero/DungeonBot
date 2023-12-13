@@ -1,5 +1,6 @@
 ﻿using System.Collections.Concurrent;
 
+using Discord;
 using Discord.WebSocket;
 
 using DungeonDiscordBot.Controllers.Abstraction;
@@ -22,4 +23,9 @@ public interface IUserInterfaceService : IRequireInitiationService
     /// </summary>
     Task UpdateSongsQueueMessageAsync(ulong guildId, ConcurrentQueue<AudioQueueRecord> queue, 
         MusicPlayerMetadata playerMetadata, string message = "", CancellationToken token = default);
+    
+    MessageProperties GenerateMissingPermissionsMessage(
+        string description,
+        ChannelPermission[] requiredPermissions,
+        SocketGuildChannel channel);
 }
