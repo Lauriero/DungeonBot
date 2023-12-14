@@ -73,7 +73,7 @@ public class YandexMusicProviderController : BaseMusicProviderController
             } else {
                 YTrack firstTrack = tracks.First();
                 string artists = string.Join(", ", firstTrack.Artists.Select(a => a.Name));
-                collectionName = $"{firstTrack.Title}";
+                collectionName = $"{artists} - {firstTrack.Title}";
             }
         } else if (albumMatch.Success) {
             var album = await _api.Album.GetAsync(_apiAuth, albumMatch.Groups[1].Value);

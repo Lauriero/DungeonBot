@@ -84,7 +84,7 @@ namespace DungeonDiscordBot.Controllers
                 foreach (Guild guild in await _dataStorageService.GetMusicGuildsAsync()) {
                     SocketTextChannel musicChannel = await GetChannelAsync(guild.MusicChannelId!.Value);
                     _dataStorageService.AddMusicControlChannel(guild.Id, musicChannel);
-                    
+
                     _audioService.CreateMusicPlayerMetadata(guild.Id);
                     await _audioService.UpdateSongsQueueAsync(guild.Id);
                 }

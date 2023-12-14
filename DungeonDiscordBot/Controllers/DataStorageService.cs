@@ -11,6 +11,8 @@ namespace DungeonDiscordBot.Controllers;
 
 public class DataStorageService : IDataStorageService
 {
+    public int MaxMusicQueryEntityCount => 10;
+    
     private readonly BotDataContext _dataContext;
     private readonly ConcurrentDictionary<ulong, SocketTextChannel> _guildMusicChannels = new();
 
@@ -84,20 +86,34 @@ public class DataStorageService : IDataStorageService
 
     public async Task RegisterMusicQueryAsync(ulong guildId, string queryName, string queryValue, CancellationToken token = default)
     {
+        if (_dataContext.MusicQueries.Local.Any(q => q.GuildId == guildId && q.QueryValue == queryValue)) {
+            return;
+        }
+
+        int queriesCount = _dataContext.MusicQueries.Count(q => q.GuildId == guildId);
+        if (queriesCount >= MaxMusicQueryEntityCount) {
+            await _dataContext.MusicQueries
+                .OrderBy(q => q.QueriedAt)
+                .Take(queriesCount - MaxMusicQueryEntityCount + 1)
+                .ExecuteDeleteAsync(token);
+        }
+        
         _dataContext.MusicQueries.Add(new MusicQueryHistoryEntity() {
             GuildId = guildId,
             QueryName = queryName,
-            QueryValue = queryValue
+            QueryValue = queryValue,
+            QueriedAt = DateTime.Now
         });
 
         await _dataContext.SaveChangesAsync(token);
     }
 
-    public Task<List<MusicQueryHistoryEntity>> GetLastMusicQueries(ulong guildId, int queriesCount, CancellationToken token = default)
+    public Task<List<MusicQueryHistoryEntity>> GetLastMusicQueries(ulong guildId, CancellationToken token = default)
     {
         return _dataContext.MusicQueries
             .Where(q => q.GuildId == guildId)
-            .Take(queriesCount)
+            .OrderByDescending(q => q.QueriedAt)
+            .Take(MaxMusicQueryEntityCount)
             .ToListAsync(token);
     }
     

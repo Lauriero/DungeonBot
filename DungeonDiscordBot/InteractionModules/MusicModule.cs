@@ -129,6 +129,8 @@ public class MusicModule : InteractionModuleBase<SocketInteractionContext>
                 await ModifyOriginalResponseAsync(m => 
                     m.Content = "Song is found");
             }
+
+            await _dataStorageService.RegisterMusicQueryAsync(Context.Guild.Id, collection.Name, query);
             
             _audioService.RegisterChannel(Context.Guild, targetChannel.Id);
             _audioService.AddAudios(Context.Guild.Id, collection.Audios, now);
