@@ -8,6 +8,7 @@ using Microsoft.Extensions.Options;
 
 using Yandex.Music.Api;
 using Yandex.Music.Api.Common;
+using Yandex.Music.Api.Models.Artist;
 using Yandex.Music.Api.Models.Common;
 using Yandex.Music.Api.Models.Search;
 using Yandex.Music.Api.Models.Search.Track;
@@ -40,7 +41,7 @@ public class YandexMusicProviderController : BaseMusicProviderController
         _logger.LogInformation("YAMusic provider initialized");
     }
 
-    public override async Task<IEnumerable<AudioQueueRecord>> GetAudiosFromLinkAsync(Uri link, int count)
+    public override async Task<MusicCollection> GetAudiosFromLinkAsync(Uri link, int count)
     {
         Regex albumRegex = new Regex(@"^.+/album/(\d+)([?/]?)(.*)$");
         Regex trackRegex = new Regex(@"^.+/album/(\d+)/track/(\d+)([?/]?)(.*)$");
@@ -54,22 +55,40 @@ public class YandexMusicProviderController : BaseMusicProviderController
         Match userPlaylistMatch = userPlaylistRegex.Match(url);
 
         IEnumerable<YTrack> tracks;
+        string collectionName;
         // #TODO: Handle exception when unable to find playlist
         if (userPlaylistMatch.Success) {
             var playlist = await _api.Playlist.GetAsync(_apiAuth, userPlaylistMatch.Groups[1].Value,
                 userPlaylistMatch.Groups[2].Value);
+
             tracks = playlist.Result.Tracks.Select(tc => tc.Track);
-        } else if (albumMatch.Success) {
-            var album = await _api.Album.GetAsync(_apiAuth, albumMatch.Groups[1].Value);
-            tracks = album.Result.Volumes.SelectMany(t => t);
+            collectionName = $"{playlist.Result.Owner.Name} - {playlist.Result.Title}";
         } else if (trackMatch.Success) {
             var track = await _api.Track.GetAsync(_apiAuth, 
                 $"{trackMatch.Groups[2].Value}:{trackMatch.Groups[1].Value}");
+            
             tracks = track.Result;
+            if (!tracks.Any()) {
+                collectionName = "Not found";
+            } else {
+                YTrack firstTrack = tracks.First();
+                string artists = string.Join(", ", firstTrack.Artists.Select(a => a.Name));
+                collectionName = $"{firstTrack.Title}";
+            }
+        } else if (albumMatch.Success) {
+            var album = await _api.Album.GetAsync(_apiAuth, albumMatch.Groups[1].Value);
+            tracks = album.Result.Volumes.SelectMany(t => t);
+
+            string artists = string.Join(", ", album.Result.Artists.Select(a => a.Name));
+            collectionName = $"{artists} - {album.Result.Title}";
         } else if (artistMatch.Success) {
             var artist = await _api.Artist.GetAllTracksAsync(_apiAuth, 
                 artistMatch.Groups[1].Value);
+            
             tracks = artist.Result.Tracks;
+
+            YResponse<YArtistBriefInfo> artistInfo = await _api.Artist.GetAsync(_apiAuth, artistMatch.Groups[1].Value);
+            collectionName = $"{artistInfo.Result.Artist.Name} - All tracks";
         } else {
             throw new MusicProviderException("Link is not supported");
         }
@@ -96,25 +115,31 @@ public class YandexMusicProviderController : BaseMusicProviderController
                     : Task.FromResult<string?>($"https://{track.CoverUri.Replace("%%", "200x200")}")));
         }
 
-        return records;
+        return new MusicCollection(MusicProvider.Yandex, collectionName, records);
     }
 
-    public override async Task<AudioQueueRecord?> GetAudioFromSearchQueryAsync(string query)
+    public override async Task<MusicCollection> GetAudioFromSearchQueryAsync(string query)
     {
         YResponse<YSearch> searchResult = await _api.Search.TrackAsync(_apiAuth, query);
         List<YSearchTrackModel> tracks = searchResult.Result.Tracks.Results;
         if (tracks.Count == 0) {
-            return null;
+            return new MusicCollection(MusicProvider.Yandex, "Not found", Array.Empty<AudioQueueRecord>());
         }
 
         YTrack track = tracks.First();
-        return new AudioQueueRecord(
-                author:          track.Artists.First().Name, 
-                title:           track.Title,
-                duration:        TimeSpan.FromMilliseconds(track.DurationMs),
-                audioUriFactory: () => _api.Track.GetFileLinkAsync(_apiAuth, track),
-                audioThumbnailUriFactory: () => track.CoverUri is null 
-                    ? Task.FromResult<string?>(null) 
-                    : Task.FromResult<string?>($"https://{track.CoverUri.Replace("%%", "200x200")}"));
+        string artists = string.Join(", ", track.Artists.Select(a => a.Name));
+        return new MusicCollection(MusicProvider.Yandex, 
+            name: $"{artists} - {track.Title}",
+            audios: new [] {
+                new AudioQueueRecord(
+                    author:          track.Artists.First().Name, 
+                    title:           track.Title,
+                    duration:        TimeSpan.FromMilliseconds(track.DurationMs),
+                    audioUriFactory: () => _api.Track.GetFileLinkAsync(_apiAuth, track),
+                    audioThumbnailUriFactory: () => track.CoverUri is null 
+                        ? Task.FromResult<string?>(null) 
+                        : Task.FromResult<string?>($"https://{track.CoverUri.Replace("%%", "200x200")}"))
+            }
+        );
     }
 }

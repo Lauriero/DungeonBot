@@ -14,4 +14,6 @@ public class BotDataContext : DbContext
                 .Options) { }
     
     public DbSet<Guild> Guilds { get; set; } = null!;
+
+    public DbSet<MusicQueryHistoryEntity> MusicQueries { get; set; } = null!;
 }

@@ -7,7 +7,5 @@ namespace DungeonDiscordBot.Controllers.Abstraction
         Task EnsureBotIsReady(SocketInteraction interaction);
         
         Task HandleInteractionException(Exception exception);
-
-        Task<SocketTextChannel> GetChannelAsync(ulong channelId, CancellationToken token = default);
     }
 }

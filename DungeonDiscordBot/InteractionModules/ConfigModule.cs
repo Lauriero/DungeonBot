@@ -18,7 +18,7 @@ public class ConfigModule : InteractionModuleBase<SocketInteractionContext>
 {
     private readonly ILogger<ConfigModule> _logger;
     private readonly IDiscordBotService _botService;
-    private readonly ISettingsService _settingsService;
+    private readonly IDataStorageService _dataStorageService;
     private readonly IDiscordAudioService _audioService;
     private readonly IUserInterfaceService _UIService;
 
@@ -31,12 +31,12 @@ public class ConfigModule : InteractionModuleBase<SocketInteractionContext>
     };
 
     public ConfigModule(ILogger<ConfigModule> logger, IDiscordAudioService audioService, IDiscordBotService botService,
-        ISettingsService settingsService, IUserInterfaceService uiService)
+        IDataStorageService dataStorageService, IUserInterfaceService uiService)
     {
         _logger = logger;
         _botService = botService;
         _audioService = audioService;
-        _settingsService = settingsService;
+        _dataStorageService = dataStorageService;
         _UIService = uiService;
     }
 

@@ -8,15 +8,20 @@ using DungeonDiscordBot.Model;
 
 namespace DungeonDiscordBot.Controllers;
 
-public interface IUserInterfaceService : IRequireInitiationService
+public interface IUserInterfaceService
 {
+    /// <summary>
+    /// Returns the number of bars used to display player progress bar.
+    /// </summary>
+    public int ProgressBarsCount { get; }
+    
     /// <summary>
     /// Creates a new message that is used to control music
     /// and sends it to the music control channel,
     /// storing channel and message ids.
     /// </summary>
     Task CreateSongsQueueMessageAsync(ulong guildId, ConcurrentQueue<AudioQueueRecord> queue,
-        MusicPlayerMetadata playerMetadata, SocketTextChannel musicChannel, CancellationToken token = default);
+        MusicPlayerMetadata playerMetadata, SocketTextChannel musicControlChannel, CancellationToken token = default);
  
     /// <summary>
     /// Updates the current message that is used to control music.

@@ -20,4 +20,6 @@ public class Guild
 
     [Column("music_message_id")]
     public ulong? MusicMessageId { get; set; }
+    
+    public ICollection<MusicQueryHistoryEntity> History { get; set; } = null!;
 }

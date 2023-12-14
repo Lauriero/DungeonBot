@@ -9,44 +9,31 @@ using Discord.WebSocket;
 
 using DungeonDiscordBot.ButtonHandlers;
 using DungeonDiscordBot.Controllers.Abstraction;
-using DungeonDiscordBot.Exceptions;
 using DungeonDiscordBot.Model;
 using DungeonDiscordBot.Model.Database;
 using DungeonDiscordBot.Utilities;
-
-using Microsoft.Extensions.DependencyInjection;
 
 namespace DungeonDiscordBot.Controllers;
 
 public class UserInterfaceService : IUserInterfaceService
 {
-    private const int PROGRESS_BARS_COUNT = 20;
-    
-    public int InitializationPriority => 6;
-    
-    private IDiscordBotService _botService = null!;
-    private readonly ISettingsService _settingsService;
-    private readonly IServiceProvider _serviceProvider;
+    public int ProgressBarsCount => 15;
 
-    public UserInterfaceService(ISettingsService settingsService, IServiceProvider serviceProvider)
+    private readonly IDataStorageService _dataStorageService;
+
+    public UserInterfaceService(IDataStorageService dataStorageService)
     {
-        _settingsService = settingsService;
-        _serviceProvider = serviceProvider;
+        _dataStorageService = dataStorageService;
     }
-
-    public async Task InitializeAsync()
-    {
-        _botService = _serviceProvider.GetRequiredService<IDiscordBotService>();
-    }
-
+    
     public async Task CreateSongsQueueMessageAsync(ulong guildId, 
         ConcurrentQueue<AudioQueueRecord> queue, MusicPlayerMetadata playerMetadata,
-        SocketTextChannel musicChannel, CancellationToken token = default)
+        SocketTextChannel musicControlChannel, CancellationToken token = default)
     {
-        Guild guild = await _settingsService.GetGuildDataAsync(guildId, token);
+        Guild guild = await _dataStorageService.GetGuildDataAsync(guildId, token);
         
         MessageProperties musicMessage = await GenerateMessageAsync(guild.Name, queue, playerMetadata);
-        RestUserMessage message = await musicChannel.SendMessageAsync("", 
+        RestUserMessage message = await musicControlChannel.SendMessageAsync("", 
             embed: musicMessage.Embed.Value, 
             components: musicMessage.Components.Value,
             options: new RequestOptions {
@@ -54,7 +41,7 @@ public class UserInterfaceService : IUserInterfaceService
                 RetryMode = RetryMode.Retry502 | RetryMode.RetryTimeouts
             });
 
-        await _settingsService.RegisterMusicChannel(guildId, musicChannel.Id, message.Id, token);
+        await _dataStorageService.RegisterMusicChannel(guildId, musicControlChannel, message.Id, token);
     }
     
     /// <summary>
@@ -64,16 +51,11 @@ public class UserInterfaceService : IUserInterfaceService
         ConcurrentQueue<AudioQueueRecord> queue, MusicPlayerMetadata playerMetadata, 
         string message = "", CancellationToken token = default)
     {
-        Guild guild = await _settingsService.GetGuildDataAsync(guildId, token);
-        MessageProperties musicMessage = await GenerateMessageAsync(guild.Name, queue, playerMetadata);
-
-        if (guild.MusicChannelId is null || guild.MusicMessageId is null) {
-            throw new MusicChannelNotRegisteredException();
-        }
-
-        SocketTextChannel textChannel = await _botService.GetChannelAsync(guild.MusicChannelId.Value, token);
+        Guild guild = await _dataStorageService.GetGuildDataAsync(guildId, token);
+        SocketTextChannel musicControlChannel = _dataStorageService.GetMusicControlChannel(guildId);
+        MessageProperties musicMessage = await GenerateMessageAsync(musicControlChannel.Guild.Name, queue, playerMetadata);
         try {
-            await textChannel.ModifyMessageAsync(guild.MusicMessageId.Value, m => {
+            await musicControlChannel.ModifyMessageAsync(guild.MusicMessageId!.Value, m => {
                 m.Content = string.IsNullOrEmpty(message) ? new Optional<string>() : message;
                 m.Embed = musicMessage.Embed;
                 m.Components = musicMessage.Components;
@@ -115,9 +97,9 @@ public class UserInterfaceService : IUserInterfaceService
             default:
                 throw new ArgumentOutOfRangeException();
         }
-        
-        queue.TryPeek(out AudioQueueRecord? firstRecord);
 
+        queue.TryPeek(out AudioQueueRecord? firstRecord);
+        
         string nextSongsList = queue.Count > 1 ? "📋 **Next songs:**\n" : "";
         for (int i = 1 + (pageNumber - 1) * 10; i < 11 + (pageNumber - 1) * 10 && i < queue.Count; i++) {
             AudioQueueRecord record = queue.ElementAt(i);
@@ -135,25 +117,72 @@ public class UserInterfaceService : IUserInterfaceService
                           "You can go and fist your friend\n" +
                           "or play something with /play\n" +
                           "```";
-        } else if (firstRecord is not null) {
+        } else {
+            if (firstRecord is null) {
+                throw new Exception("Attempt to fetch first record from a non-empty queue was failed");
+            }
+
             TimeSpan elapsed = playerMetadata.Elapsed;
             TimeSpan total = firstRecord.Duration;
-            
-            int barsProgressed = (int)Math.Floor(elapsed.TotalSeconds * PROGRESS_BARS_COUNT / total.TotalSeconds);
-            if (barsProgressed > PROGRESS_BARS_COUNT) {
-                barsProgressed = PROGRESS_BARS_COUNT;
-            }  
-            
-            description = $"🎶 **Now playing:**  ***[{firstRecord.Author} - {firstRecord.Title}](https://google.com/)***\n" +
-                          $"{elapsed:mm\\:ss} ‎ ‎‏‏‎‎ " +
-                          (barsProgressed > 0 ? $"[{new string('▰', barsProgressed)}](https://google.com/)" : "") +
-                          $"{new string('▱', PROGRESS_BARS_COUNT - barsProgressed)} ‎ ‎‏‏‎‎ " +
-                          $"{total:mm\\:ss}\n\n" +
-                          nextSongsList;
-        } else {
-            throw new Exception();
+
+            int barsProgressed = (int) Math.Floor(elapsed.TotalSeconds * ProgressBarsCount / total.TotalSeconds);
+            if (barsProgressed > ProgressBarsCount) {
+                barsProgressed = ProgressBarsCount;
+            }
+
+            StringBuilder playerBarsBuilder = new StringBuilder();
+            if (barsProgressed == 0) {
+                playerBarsBuilder.Append(Emojis.PLAYER_BAR_BG_LEFT_CORNER);
+                for (int i = 0; i < ProgressBarsCount - 2; i++) {
+                    playerBarsBuilder.Append(Emojis.PLAYER_BAR_BG);
+                }
+
+                playerBarsBuilder.Append(Emojis.PLAYER_BAR_BG_RIGHT_CORNER);
+            } else if (barsProgressed == ProgressBarsCount) {
+                playerBarsBuilder.Append(Emojis.PLAYER_BAR_SOLID_LEFT_CORNER);
+                for (int i = 0; i < ProgressBarsCount - 2; i++) {
+                    playerBarsBuilder.Append(Emojis.PLAYER_BAR_SOLID);
+                }
+
+                playerBarsBuilder.Append(Emojis.PLAYER_BAR_SOLID_RIGHT_CORNER);
+            } else if (barsProgressed == 1) {
+                playerBarsBuilder.Append(Emojis.PLAYER_BAR_SOLID_RIGHT_LEFT_CORNER);
+                for (int i = 0; i < ProgressBarsCount - 2; i++) {
+                    playerBarsBuilder.Append(Emojis.PLAYER_BAR_BG);
+                }
+
+                playerBarsBuilder.Append(Emojis.PLAYER_BAR_BG_RIGHT_CORNER);
+            } else if (barsProgressed == 2) {
+                playerBarsBuilder.Append(Emojis.PLAYER_BAR_SOLID_LEFT_CORNER);
+                playerBarsBuilder.Append(Emojis.PLAYER_BAR_SOLID_BG_RIGHT_CORNER);
+                for (int i = 0; i < ProgressBarsCount - 3; i++) {
+                    playerBarsBuilder.Append(Emojis.PLAYER_BAR_BG);
+                }
+
+                playerBarsBuilder.Append(Emojis.PLAYER_BAR_BG_RIGHT_CORNER);
+            } else {
+                playerBarsBuilder.Append(Emojis.PLAYER_BAR_SOLID_LEFT_CORNER);
+                for (int i = 0; i < barsProgressed - 2; i++) {
+                    playerBarsBuilder.Append(Emojis.PLAYER_BAR_SOLID);
+                }
+
+                playerBarsBuilder.Append(Emojis.PLAYER_BAR_SOLID_BG_RIGHT_CORNER);
+                for (int i = 0; i < ProgressBarsCount - barsProgressed - 1; i++) {
+                    playerBarsBuilder.Append(Emojis.PLAYER_BAR_BG);
+                }
+
+                playerBarsBuilder.Append(Emojis.PLAYER_BAR_BG_RIGHT_CORNER);
+            }
+
+            description =
+                $"🎶 **Now playing:**  ***[{firstRecord.Author} - {firstRecord.Title}](https://google.com/)***\n" +
+                $"{elapsed:mm\\:ss} ‎ ‎‏‏‎‎ " +
+                $"{playerBarsBuilder} ‎ ‎‏‏‎‎ " +
+                $"{total:mm\\:ss}\n\n" +
+                nextSongsList;
+
         }
-        
+
         int pagesCount = (int) Math.Ceiling((queue.Count - 1) / 10.0);
         if (pagesCount < 1) {
             pagesCount = 1;
@@ -163,6 +192,7 @@ public class UserInterfaceService : IUserInterfaceService
         if (firstRecord is not null) {
             thumbnailUrl = await firstRecord.AudioThumbnailUrl.Value ?? thumbnailUrl;
         }
+        
         
         EmbedBuilder embedBuilder = new EmbedBuilder()
             .WithColor(embedColor)

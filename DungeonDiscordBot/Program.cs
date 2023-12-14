@@ -56,7 +56,7 @@ namespace DungeonDiscordBot
                         .AddSingleton<DiscordSocketClient>()
 
                         .AddSingleton<IUserInterfaceService, UserInterfaceService>()
-                        .AddSingleton<ISettingsService, SettingsService>()
+                        .AddSingleton<IDataStorageService, DataStorageService>()
                         .AddSingleton<IDiscordAudioService, DiscordAudioService>()
                         .AddSingleton<IDiscordBotService, DiscordBotService>()
 

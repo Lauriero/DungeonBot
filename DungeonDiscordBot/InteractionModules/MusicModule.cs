@@ -5,6 +5,7 @@ using Discord.Audio;
 using Discord.Interactions;
 using Discord.WebSocket;
 
+using DungeonDiscordBot.AutocompleteHandlers;
 using DungeonDiscordBot.Controllers;
 using DungeonDiscordBot.Controllers.Abstraction;
 using DungeonDiscordBot.Exceptions;
@@ -23,7 +24,7 @@ public class MusicModule : InteractionModuleBase<SocketInteractionContext>
     
     private readonly ILogger<MusicModule> _logger;
     private readonly IDiscordBotService _botService;
-    private readonly ISettingsService _settingsService;
+    private readonly IDataStorageService _dataStorageService;
     private readonly IDiscordAudioService _audioService;
     private readonly IUserInterfaceService _UIService;
     
@@ -31,12 +32,12 @@ public class MusicModule : InteractionModuleBase<SocketInteractionContext>
         ChannelPermission.Speak,
     };
     
-    public MusicModule(ILogger<MusicModule> logger, IDiscordAudioService audioService, IDiscordBotService botService, ISettingsService settingsService, IUserInterfaceService uiService)
+    public MusicModule(ILogger<MusicModule> logger, IDiscordAudioService audioService, IDiscordBotService botService, IDataStorageService dataStorageService, IUserInterfaceService uiService)
     {
         _logger = logger;
         _botService = botService;
         _audioService = audioService;
-        _settingsService = settingsService;
+        _dataStorageService = dataStorageService;
         _UIService = uiService;
     }
 
@@ -46,6 +47,7 @@ public class MusicModule : InteractionModuleBase<SocketInteractionContext>
         runMode:     RunMode.Async)]
     public async Task PlayAsync(
         [Summary("query", "Link to a song, playlist, video or a search query")]
+        [Autocomplete(typeof(QueryAutocompleteHandler))]
         string query,
         
         [Summary("provider", "Name of the music providerController the search will be performed with (VK default)")]
@@ -79,7 +81,7 @@ public class MusicModule : InteractionModuleBase<SocketInteractionContext>
             }
             
             provider ??= MusicProvider.VK;
-            IEnumerable<AudioQueueRecord> records;
+            MusicCollection collection;
             string message = "";
             if (Uri.TryCreate(query, UriKind.Absolute, out Uri? link)
                 && (link.Scheme == Uri.UriSchemeHttp || link.Scheme == Uri.UriSchemeHttps)) {
@@ -108,29 +110,28 @@ public class MusicModule : InteractionModuleBase<SocketInteractionContext>
                             m.Content = $"{audiosProcessed} audios were processed"));
                 };
                 
-                records = await controller.GetAudiosFromLinkAsync(link, quantity);
-                if (!records.Any()) {
+                collection = await controller.GetAudiosFromLinkAsync(link, quantity);
+                if (!collection.Audios.Any()) {
                     await ModifyOriginalResponseAsync((m) => m.Content = $"No tracks were added");
                     return;
                 }
 
-                message = $"**{records.Count()}** tracks were added to the queue";
+                message = $"**{collection.Audios.Count()}** tracks from {collection.Name} were added to the queue";
             } else {
                 await ModifyOriginalResponseAsync(m => m.Content = "Searching...");
-                AudioQueueRecord? record = await provider.Value.GetAudioFromSearchQueryAsync(query);
-                if (record is null) {
+                collection = await provider.Value.GetAudioFromSearchQueryAsync(query);
+                if (!collection.Audios.Any()) {
                     await ModifyOriginalResponseAsync(m => m.Content = "Nothing was found");
                     return;
                 }
                 
-                records = new[] { record };
-                message = $"Song ***{record.Author} - {record.Title}*** was added to the queue";
+                message = $"Song ***{collection.Name}*** was added to the queue";
                 await ModifyOriginalResponseAsync(m => 
                     m.Content = "Song is found");
             }
             
             _audioService.RegisterChannel(Context.Guild, targetChannel.Id);
-            _audioService.AddAudios(Context.Guild.Id, records, now);
+            _audioService.AddAudios(Context.Guild.Id, collection.Audios, now);
             await _audioService.PlayQueueAsync(Context.Guild.Id, message);
         });
     }
@@ -148,7 +149,7 @@ public class MusicModule : InteractionModuleBase<SocketInteractionContext>
 
     private async Task EnsureInMusicChannel()
     {
-        Guild guild = await _settingsService.GetGuildDataAsync(Context.Guild.Id);
+        Guild guild = await _dataStorageService.GetGuildDataAsync(Context.Guild.Id);
         if (guild.MusicChannelId is null || guild.MusicMessageId is null) {
             await ModifyOriginalResponseAsync(m =>
                 m.Content = "Music channel is not registered, register it with /register-music-channel");
