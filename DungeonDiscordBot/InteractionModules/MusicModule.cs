@@ -81,7 +81,7 @@ public class MusicModule : InteractionModuleBase<SocketInteractionContext>
             }
             
             provider ??= MusicProvider.VK;
-            MusicCollection collection;
+            MusicCollectionResponse collection;
             string message = "";
             if (Uri.TryCreate(query, UriKind.Absolute, out Uri? link)
                 && (link.Scheme == Uri.UriSchemeHttp || link.Scheme == Uri.UriSchemeHttps)) {
@@ -111,18 +111,45 @@ public class MusicModule : InteractionModuleBase<SocketInteractionContext>
                 };
                 
                 collection = await controller.GetAudiosFromLinkAsync(link, quantity);
-                if (!collection.Audios.Any()) {
-                    await ModifyOriginalResponseAsync((m) => m.Content = $"No tracks were added");
-                    return;
+                if (collection.IsError) {
+                    _logger.LogInformation($"Error while getting music from {collection.Provider.Name} music provider " +
+                                           $"[guildId: {Context.Guild.Id}; query: {query}]: " +
+                                           $"{collection.ErrorType} - {collection.ErrorMessage}");
+                    switch (collection.ErrorType) {
+                        case MusicResponseErrorType.PermissionDenied:
+                            await ModifyOriginalResponseAsync((m) 
+                                => m.Content = $"Permission to audio was denied");
+                            return;
+                        
+                        case MusicResponseErrorType.NoAudioFound:
+                            await ModifyOriginalResponseAsync((m) 
+                                => m.Content = $"No audio was found by the requested url");
+                            return;
+                        
+                        case MusicResponseErrorType.LinkNotSupported:
+                            await ModifyOriginalResponseAsync((m) 
+                                => m.Content = $"Bot is not able to parse this type of link");
+                            return;
+                        default:
+                            return;
+                    }
                 }
 
                 message = $"**{collection.Audios.Count()}** tracks from {collection.Name} were added to the queue";
             } else {
                 await ModifyOriginalResponseAsync(m => m.Content = "Searching...");
                 collection = await provider.Value.GetAudioFromSearchQueryAsync(query);
-                if (!collection.Audios.Any()) {
-                    await ModifyOriginalResponseAsync(m => m.Content = "Nothing was found");
-                    return;
+                if (collection.IsError) {
+                    switch (collection.ErrorType) {
+                        case MusicResponseErrorType.NoAudioFound:
+                            await ModifyOriginalResponseAsync(m => m.Content = "Nothing was found");
+                            return;
+                        
+                        default:
+                            await ModifyOriginalResponseAsync(m => 
+                                m.Content = "Unhandled error has occured while searching");
+                            return;  
+                    }
                 }
                 
                 message = $"Song ***{collection.Name}*** was added to the queue";
@@ -131,7 +158,6 @@ public class MusicModule : InteractionModuleBase<SocketInteractionContext>
             }
 
             await _dataStorageService.RegisterMusicQueryAsync(Context.Guild.Id, collection.Name, query);
-            
             _audioService.RegisterChannel(Context.Guild, targetChannel.Id);
             _audioService.AddAudios(Context.Guild.Id, collection.Audios, now);
             await _audioService.PlayQueueAsync(Context.Guild.Id, message);

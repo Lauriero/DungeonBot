@@ -28,12 +28,12 @@ public abstract class BaseMusicProviderController :
     /// <summary>
     /// Gets audios by a url.
     /// </summary>
-    public abstract Task<MusicCollection> GetAudiosFromLinkAsync(Uri link, int count);
+    public abstract Task<MusicCollectionResponse> GetAudiosFromLinkAsync(Uri link, int count);
 
     /// <summary>
     /// Gets a single audio from a search query.
     /// </summary>
-    public abstract Task<MusicCollection> GetAudioFromSearchQueryAsync(string query);
+    public abstract Task<MusicCollectionResponse> GetAudioFromSearchQueryAsync(string query);
     
     protected void OnAudiosProcessingStarted(int audiosToProcess)
     {

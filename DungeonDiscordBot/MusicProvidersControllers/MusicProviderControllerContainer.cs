@@ -21,13 +21,13 @@ public class MusicProviderControllerContainer : BaseMusicProviderController
         return Instance.InitializeAsync();
     }
 
-    public override Task<MusicCollection> GetAudiosFromLinkAsync(Uri link, int count)
+    public override Task<MusicCollectionResponse> GetAudiosFromLinkAsync(Uri link, int count)
     {
         EnsureInstanceInitialized();
         return Instance.GetAudiosFromLinkAsync(link, count);
     }
 
-    public override Task<MusicCollection> GetAudioFromSearchQueryAsync(string query)
+    public override Task<MusicCollectionResponse> GetAudioFromSearchQueryAsync(string query)
     {
         EnsureInstanceInitialized();
         return Instance.GetAudioFromSearchQueryAsync(query);

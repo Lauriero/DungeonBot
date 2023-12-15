@@ -11,6 +11,7 @@ using Microsoft.Extensions.Logging;
 using VkNet;
 using VkNet.Abstractions;
 using VkNet.AudioBypassService.Extensions;
+using VkNet.Exception;
 using VkNet.Model;
 using VkNet.Utils;
 
@@ -46,7 +47,7 @@ public class VkMusicProviderController : BaseMusicProviderController
         _logger.LogInformation("VKMusic provider initialized");
     }
 
-    public override async Task<MusicCollection> GetAudiosFromLinkAsync(Uri link, int count)
+    public override async Task<MusicCollectionResponse> GetAudiosFromLinkAsync(Uri link, int count)
     {
         string url = link.AbsoluteUri;
         Regex songRegex = new Regex(@".+audio(-?\d+)_(\d+)_(.+)");
@@ -68,13 +69,21 @@ public class VkMusicProviderController : BaseMusicProviderController
             long audioId = Convert.ToInt64(songMatch.Groups[2].Value);
             accessToken = songMatch.Groups[3].Value;;
 
-            audios.AddRange(await GetAudio(userId, audioId, accessToken));
+            try {
+                IEnumerable<Audio> result = await GetAudio(userId, audioId, accessToken);
+                audios.AddRange(result);
+            } catch (AudioAccessDeniedException) {
+                return MusicCollectionResponse.FromError(MusicProvider.VK, MusicResponseErrorType.PermissionDenied, 
+                    "Access to audio is denied");
+            }
+            
             if (!audios.Any()) {
-                return new MusicCollection(MusicProvider.VK, "Not found", Array.Empty<AudioQueueRecord>());
+                return MusicCollectionResponse.FromError(MusicProvider.VK, MusicResponseErrorType.NoAudioFound, 
+                    $"There's no audio found on {url}");
             }
 
             Audio firstAudio = audios.First();
-            return new MusicCollection(MusicProvider.VK, 
+            return MusicCollectionResponse.FromSuccess(MusicProvider.VK, 
                 name: $"{firstAudio.Artist} - {firstAudio.Title}",
                 audios: new [] {
                     new AudioQueueRecord(firstAudio.Artist, firstAudio.Title,
@@ -85,7 +94,7 @@ public class VkMusicProviderController : BaseMusicProviderController
             );
         }
 
-        string collectionName = "Not found";
+        string collectionName = "";
         if (playlistMatch.Success) {
             await onPlaylistMatch(playlistMatch);
         } else if (sovaPlaylistMatch.Success) {
@@ -100,13 +109,15 @@ public class VkMusicProviderController : BaseMusicProviderController
             
             audios.AddRange(await GetAudios(userId, playlistId.Value, accessToken));
             if (!audios.Any()) {
-                return new MusicCollection(MusicProvider.Yandex, "Not found", Array.Empty<AudioQueueRecord>());
+                return MusicCollectionResponse.FromError(MusicProvider.VK, MusicResponseErrorType.NoAudioFound, 
+                    "There's nothing in the requested album");
             }
 
             Audio firstAudio = audios.First();
             collectionName = $"{firstAudio.Artist} - {firstAudio.Album.Title}";
         } else {
-            throw new ArgumentException("Link is not supported", nameof(url));
+            return MusicCollectionResponse.FromError(MusicProvider.VK, MusicResponseErrorType.LinkNotSupported, 
+                $"Current provider can't handle urls like {url}");
         }
 
         async Task onPlaylistMatch(Match match)
@@ -148,10 +159,10 @@ public class VkMusicProviderController : BaseMusicProviderController
         }
         
         OnAudiosProcessed(addedCount);
-        return new MusicCollection(MusicProvider.VK, collectionName, records);
+        return MusicCollectionResponse.FromSuccess(MusicProvider.VK, collectionName, records);
     }
 
-    public override async Task<MusicCollection> GetAudioFromSearchQueryAsync(string query)
+    public override async Task<MusicCollectionResponse> GetAudioFromSearchQueryAsync(string query)
     {
         VkCollection<Audio> audios = await _api.Audio.SearchAsync(new AudioSearchParams {
             Query = query,
@@ -160,11 +171,12 @@ public class VkMusicProviderController : BaseMusicProviderController
         });
 
         if (audios.Count == 0) {
-            return new MusicCollection(MusicProvider.VK, "Not found", Array.Empty<AudioQueueRecord>());
+            return MusicCollectionResponse.FromError(MusicProvider.VK, MusicResponseErrorType.NoAudioFound, 
+                "There's no audio that match the search query");
         }
 
         Audio audio = audios.First();
-        return new MusicCollection(MusicProvider.VK, 
+        return MusicCollectionResponse.FromSuccess(MusicProvider.VK, 
             name: $"{audio.Artist} - {audio.Title}",
             audios: new [] {
                 new AudioQueueRecord(audio.Artist, audio.Title,
