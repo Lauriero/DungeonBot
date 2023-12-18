@@ -1,6 +1,6 @@
 ﻿using System.Diagnostics.CodeAnalysis;
 
-namespace DungeonDiscordBot.Model;
+namespace DungeonDiscordBot.Model.MusicProviders;
 
 /// <summary>
 /// Response of the music provider.

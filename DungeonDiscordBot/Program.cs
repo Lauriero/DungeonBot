@@ -7,6 +7,7 @@ using DungeonDiscordBot.ButtonHandlers;
 using DungeonDiscordBot.Controllers;
 using DungeonDiscordBot.Controllers.Abstraction;
 using DungeonDiscordBot.Model;
+using DungeonDiscordBot.Model.MusicProviders;
 
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;

@@ -32,7 +32,7 @@ public class UserInterfaceService : IUserInterfaceService
     {
         Guild guild = await _dataStorageService.GetGuildDataAsync(guildId, token);
         
-        MessageProperties musicMessage = await GenerateMessageAsync(guild.Name, queue, playerMetadata);
+        MessageProperties musicMessage = await GenerateMusicMessageAsync(guild.Name, queue, playerMetadata);
         RestUserMessage message = await musicControlChannel.SendMessageAsync("", 
             embed: musicMessage.Embed.Value, 
             components: musicMessage.Components.Value,
@@ -53,7 +53,7 @@ public class UserInterfaceService : IUserInterfaceService
     {
         Guild guild = await _dataStorageService.GetGuildDataAsync(guildId, token);
         SocketTextChannel musicControlChannel = _dataStorageService.GetMusicControlChannel(guildId);
-        MessageProperties musicMessage = await GenerateMessageAsync(musicControlChannel.Guild.Name, queue, playerMetadata);
+        MessageProperties musicMessage = await GenerateMusicMessageAsync(musicControlChannel.Guild.Name, queue, playerMetadata);
         try {
             await musicControlChannel.ModifyMessageAsync(guild.MusicMessageId!.Value, m => {
                 m.Content = string.IsNullOrEmpty(message) ? new Optional<string>() : message;
@@ -67,7 +67,7 @@ public class UserInterfaceService : IUserInterfaceService
         } catch (TimeoutException) { }
     }
 
-    private async Task<MessageProperties> GenerateMessageAsync(string guildName, 
+    private async Task<MessageProperties> GenerateMusicMessageAsync(string guildName, 
         ConcurrentQueue<AudioQueueRecord> queue, MusicPlayerMetadata playerMetadata)
     {
         int pageNumber = playerMetadata.PageNumber;
@@ -111,6 +111,7 @@ public class UserInterfaceService : IUserInterfaceService
         }
 
         string description;
+        EmbedAuthorBuilder? authorBuilder = null;
         if (queue.IsEmpty) {
             description = "```" +
                           "Queue is empty for now\n" +
@@ -121,6 +122,11 @@ public class UserInterfaceService : IUserInterfaceService
             if (firstRecord is null) {
                 throw new Exception("Attempt to fetch first record from a non-empty queue was failed");
             }
+
+            authorBuilder = new EmbedAuthorBuilder()
+                .WithName($"Now playing: {firstRecord.Author} - {firstRecord.Title}")
+                .WithUrl("https://google.com/")
+                .WithIconUrl(firstRecord.Provider.Value.LogoUri);
 
             TimeSpan elapsed = playerMetadata.Elapsed;
             TimeSpan total = firstRecord.Duration;
@@ -175,7 +181,6 @@ public class UserInterfaceService : IUserInterfaceService
             }
 
             description =
-                $"🎶 **Now playing:**  ***[{firstRecord.Author} - {firstRecord.Title}](https://google.com/)***\n" +
                 $"{elapsed:mm\\:ss} ‎ ‎‏‏‎‎ " +
                 $"{playerBarsBuilder} ‎ ‎‏‏‎‎ " +
                 $"{total:mm\\:ss}\n\n" +
@@ -202,6 +207,10 @@ public class UserInterfaceService : IUserInterfaceService
                 "http://larc.tech/content/dungeon-bot/up-and-down.png")
             .WithThumbnailUrl(thumbnailUrl)
             .WithDescription(description);
+
+        if (authorBuilder is not null) {
+            embedBuilder.WithAuthor(authorBuilder);
+        }
         
         ComponentBuilder componentBuilder = new ComponentBuilder();
         componentBuilder

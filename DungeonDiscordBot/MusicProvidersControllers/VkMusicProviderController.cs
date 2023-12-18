@@ -3,6 +3,7 @@ using System.Text.RegularExpressions;
 
 using DungeonDiscordBot.Model;
 using DungeonDiscordBot.Model.Database;
+using DungeonDiscordBot.Model.MusicProviders;
 
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
@@ -20,6 +21,7 @@ namespace DungeonDiscordBot.MusicProvidersControllers;
 public class VkMusicProviderController : BaseMusicProviderController
 {
     public override string LinksDomainName => "vk.com";
+    public override string LogoUri => "http://larc.tech/content/dungeon-bot/logo-vk.png";
 
     private IVkApi _api = null!;
     private readonly ILogger<VkMusicProviderController> _logger;
@@ -86,10 +88,13 @@ public class VkMusicProviderController : BaseMusicProviderController
             return MusicCollectionResponse.FromSuccess(MusicProvider.VK, 
                 name: $"{firstAudio.Artist} - {firstAudio.Title}",
                 audios: new [] {
-                    new AudioQueueRecord(firstAudio.Artist, firstAudio.Title,
-                        () => Task.FromResult(firstAudio.Url.AbsoluteUri),
-                        () => Task.FromResult(firstAudio.Album?.Thumb.Photo135),
-                        TimeSpan.FromSeconds(firstAudio.Duration))
+                    new AudioQueueRecord(
+                        provider:          MusicProvider.VK, 
+                        author:            firstAudio.Artist, 
+                        title:             firstAudio.Title,
+                        audioUri:          firstAudio.Url.AbsoluteUri,
+                        audioThumbnailUri: firstAudio.Album?.Thumb.Photo135,
+                        duration:          TimeSpan.FromSeconds(firstAudio.Duration))
                 }
             );
         }
@@ -151,10 +156,13 @@ public class VkMusicProviderController : BaseMusicProviderController
                 continue;
             }
             
-            records.Add(new AudioQueueRecord(audio.Artist, audio.Title, 
-                () => Task.FromResult(audio.Url.AbsoluteUri), 
-                () => Task.FromResult(audio.Album?.Thumb.Photo135),
-                TimeSpan.FromSeconds(audio.Duration)));
+            records.Add(new AudioQueueRecord(
+                provider:          MusicProvider.VK, 
+                author:            audio.Artist, 
+                title:             audio.Title,
+                audioUri:          audio.Url.AbsoluteUri,
+                audioThumbnailUri: audio.Album?.Thumb.Photo135,
+                duration:          TimeSpan.FromSeconds(audio.Duration)));
             addedCount++;
         }
         
@@ -179,10 +187,13 @@ public class VkMusicProviderController : BaseMusicProviderController
         return MusicCollectionResponse.FromSuccess(MusicProvider.VK, 
             name: $"{audio.Artist} - {audio.Title}",
             audios: new [] {
-                new AudioQueueRecord(audio.Artist, audio.Title,
-                    () => Task.FromResult(audio.Url.AbsoluteUri),
-                    () => Task.FromResult(audio.Album?.Thumb.Photo135),
-                    TimeSpan.FromSeconds(audio.Duration))
+                new AudioQueueRecord(
+                    provider:          MusicProvider.VK, 
+                    author:            audio.Artist, 
+                    title:             audio.Title,
+                    audioUri:          audio.Url.AbsoluteUri,
+                    audioThumbnailUri: audio.Album?.Thumb.Photo135,
+                    duration:          TimeSpan.FromSeconds(audio.Duration))
             }
         );
     }

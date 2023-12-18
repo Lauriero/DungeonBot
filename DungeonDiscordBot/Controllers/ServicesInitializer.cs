@@ -1,5 +1,6 @@
 ﻿using DungeonDiscordBot.Controllers.Abstraction;
 using DungeonDiscordBot.Model;
+using DungeonDiscordBot.Model.MusicProviders;
 using DungeonDiscordBot.MusicProvidersControllers;
 using DungeonDiscordBot.Utilities;
 

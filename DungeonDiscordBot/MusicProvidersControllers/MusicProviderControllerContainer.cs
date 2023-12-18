@@ -1,6 +1,7 @@
 ﻿using System.Diagnostics.CodeAnalysis;
 
 using DungeonDiscordBot.Model;
+using DungeonDiscordBot.Model.MusicProviders;
 
 namespace DungeonDiscordBot.MusicProvidersControllers;
 
@@ -8,8 +9,8 @@ public class MusicProviderControllerContainer : BaseMusicProviderController
 {
     public BaseMusicProviderController? Instance { private get; set; }
     public override string LinksDomainName => Instance?.LinksDomainName ?? throw new NotImplementedException();
+    public override string LogoUri => Instance?.LogoUri ?? throw new NotImplementedException();
 
-    
     public MusicProviderControllerContainer(Type destinationType) : base(destinationType) { }
     
     public override Task InitializeAsync()

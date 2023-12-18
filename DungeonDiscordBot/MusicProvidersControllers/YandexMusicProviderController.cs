@@ -1,6 +1,7 @@
 ﻿using System.Text.RegularExpressions;
 
 using DungeonDiscordBot.Model;
+using DungeonDiscordBot.Model.MusicProviders;
 
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -18,7 +19,8 @@ namespace DungeonDiscordBot.MusicProvidersControllers;
 public class YandexMusicProviderController : BaseMusicProviderController
 {
     public override string LinksDomainName => "music.yandex.ru";
-    
+    public override string LogoUri => "http://larc.tech/content/dungeon-bot/logo-yandex-music.png";
+
     private readonly YandexMusicApi _api;
     private readonly AuthStorage _apiAuth;
     private readonly AppSettings _settings;
@@ -107,6 +109,7 @@ public class YandexMusicProviderController : BaseMusicProviderController
             }
             
             records.Add(new AudioQueueRecord(
+                provider:        MusicProvider.Yandex,
                 author:          track.Artists.First().Name, 
                 title:           track.Title,
                 duration:        TimeSpan.FromMilliseconds(track.DurationMs),
@@ -134,6 +137,7 @@ public class YandexMusicProviderController : BaseMusicProviderController
             name: $"{artists} - {track.Title}",
             audios: new [] {
                 new AudioQueueRecord(
+                    provider:        MusicProvider.Yandex, 
                     author:          track.Artists.First().Name, 
                     title:           track.Title,
                     duration:        TimeSpan.FromMilliseconds(track.DurationMs),

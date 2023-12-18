@@ -1,4 +1,4 @@
-﻿namespace DungeonDiscordBot.Model;
+﻿namespace DungeonDiscordBot.Model.MusicProviders;
 
 public enum MusicResponseErrorType
 {

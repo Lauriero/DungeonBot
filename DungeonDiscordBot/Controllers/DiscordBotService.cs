@@ -10,6 +10,7 @@ using DungeonDiscordBot.Controllers.Abstraction;
 using DungeonDiscordBot.Exceptions;
 using DungeonDiscordBot.Model;
 using DungeonDiscordBot.Model.Database;
+using DungeonDiscordBot.Model.MusicProviders;
 using DungeonDiscordBot.MusicProvidersControllers;
 using DungeonDiscordBot.TypeConverters;
 using DungeonDiscordBot.Utilities;

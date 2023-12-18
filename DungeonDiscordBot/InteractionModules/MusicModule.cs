@@ -11,6 +11,7 @@ using DungeonDiscordBot.Controllers.Abstraction;
 using DungeonDiscordBot.Exceptions;
 using DungeonDiscordBot.Model;
 using DungeonDiscordBot.Model.Database;
+using DungeonDiscordBot.Model.MusicProviders;
 using DungeonDiscordBot.MusicProvidersControllers;
 using DungeonDiscordBot.Utilities;
 
@@ -50,7 +51,7 @@ public class MusicModule : InteractionModuleBase<SocketInteractionContext>
         [Autocomplete(typeof(QueryAutocompleteHandler))]
         string query,
         
-        [Summary("provider", "Name of the music providerController the search will be performed with (VK default)")]
+        [Summary("provider", "Name of the music provider the search will be performed with (VK default)")]
         MusicProvider? provider = null,
         
         [Summary("quantity", "Number of tracks that should be fetched")]

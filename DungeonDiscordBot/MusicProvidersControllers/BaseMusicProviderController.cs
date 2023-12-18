@@ -1,5 +1,6 @@
 ﻿using DungeonDiscordBot.Controllers.Abstraction;
 using DungeonDiscordBot.Model;
+using DungeonDiscordBot.Model.MusicProviders;
 
 namespace DungeonDiscordBot.MusicProvidersControllers;
 
@@ -13,6 +14,8 @@ public abstract class BaseMusicProviderController :
     public event Action<int>? AudiosProcessed;
     
     public abstract string LinksDomainName { get; }
+    
+    public abstract string LogoUri { get; }
 
     public int InitializationPriority => 0;
     
@@ -34,7 +37,7 @@ public abstract class BaseMusicProviderController :
     /// Gets a single audio from a search query.
     /// </summary>
     public abstract Task<MusicCollectionResponse> GetAudioFromSearchQueryAsync(string query);
-    
+
     protected void OnAudiosProcessingStarted(int audiosToProcess)
     {
         AudiosProcessingStarted?.Invoke(audiosToProcess);
