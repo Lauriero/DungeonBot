@@ -44,16 +44,13 @@ public class MusicModule : InteractionModuleBase<SocketInteractionContext>
 
     [SlashCommand(
         name:        "play",
-        description: "Plays song or playlist from the link or search request", 
+        description: "Plays song or playlist from the link", 
         runMode:     RunMode.Async)]
     public async Task PlayAsync(
-        [Summary("query", "Link to a song, playlist, video or a search query")]
+        [Summary("query", "Link to a song, playlist, video")]
         [Autocomplete(typeof(QueryAutocompleteHandler))]
         string query,
-        
-        [Summary("provider", "Name of the music provider the search will be performed with (VK default)")]
-        MusicProvider? provider = null,
-        
+
         [Summary("quantity", "Number of tracks that should be fetched")]
         int quantity = -1,
         
@@ -80,89 +77,127 @@ public class MusicModule : InteractionModuleBase<SocketInteractionContext>
                 await ModifyOriginalResponseAsync(m => m.ApplyMessageProperties(missingPermissionsMessage));
                 return;
             }
-            
-            provider ??= MusicProvider.VK;
-            MusicCollectionResponse collection;
-            string message = "";
-            if (Uri.TryCreate(query, UriKind.Absolute, out Uri? link)
-                && (link.Scheme == Uri.UriSchemeHttp || link.Scheme == Uri.UriSchemeHttps)) {
 
-                BaseMusicProviderController? controller = link.FindMusicProviderController();
-                if (controller is null) {
-                    await ModifyOriginalResponseAsync(m => m.Content = "***This link is not supported***");
-                    return;
-                }
-
-                controller.AudiosProcessingStarted += audiosCount => {
-                    Task.Run(async () =>
-                        await ModifyOriginalResponseAsync(m => 
-                            m.Content = $"Processing 0/{audiosCount}"));
-                };
-
-                controller.AudiosProcessingProgressed += (audiosProcessed, audiosCount) => {
-                    Task.Run(async () =>
-                        await ModifyOriginalResponseAsync(m => 
-                            m.Content = $"Processing {audiosProcessed}/{audiosCount}"));
-                };
-
-                controller.AudiosProcessed += audiosProcessed => {
-                    Task.Run(async () =>
-                        await ModifyOriginalResponseAsync(m => 
-                            m.Content = $"{audiosProcessed} audios were processed"));
-                };
+            if (!Uri.TryCreate(query, UriKind.Absolute, out Uri? link) 
+                || link.Scheme != Uri.UriSchemeHttp && link.Scheme != Uri.UriSchemeHttps) {
                 
-                collection = await controller.GetAudiosFromLinkAsync(link, quantity);
-                if (collection.IsError) {
-                    _logger.LogInformation($"Error while getting music from {collection.Provider.Name} music provider " +
-                                           $"[guildId: {Context.Guild.Id}; query: {query}]: " +
-                                           $"{collection.ErrorType} - {collection.ErrorMessage}");
-                    switch (collection.ErrorType) {
-                        case MusicResponseErrorType.PermissionDenied:
-                            await ModifyOriginalResponseAsync((m) 
-                                => m.Content = $"Permission to audio was denied");
-                            return;
-                        
-                        case MusicResponseErrorType.NoAudioFound:
-                            await ModifyOriginalResponseAsync((m) 
-                                => m.Content = $"No audio was found by the requested url");
-                            return;
-                        
-                        case MusicResponseErrorType.LinkNotSupported:
-                            await ModifyOriginalResponseAsync((m) 
-                                => m.Content = $"Bot is not able to parse this type of link");
-                            return;
-                        default:
-                            return;
-                    }
-                }
-
-                message = $"**{collection.Audios.Count()}** tracks from {collection.Name} were added to the queue";
-            } else {
-                await ModifyOriginalResponseAsync(m => m.Content = "Searching...");
-                collection = await provider.Value.GetAudioFromSearchQueryAsync(query);
-                if (collection.IsError) {
-                    switch (collection.ErrorType) {
-                        case MusicResponseErrorType.NoAudioFound:
-                            await ModifyOriginalResponseAsync(m => m.Content = "Nothing was found");
-                            return;
-                        
-                        default:
-                            await ModifyOriginalResponseAsync(m => 
-                                m.Content = "Unhandled error has occured while searching");
-                            return;  
-                    }
-                }
-                
-                message = $"Song ***{collection.Name}*** was added to the queue";
-                await ModifyOriginalResponseAsync(m => 
-                    m.Content = "Song is found");
+                await ModifyOriginalResponseAsync(m => m.Content =
+                    $"***{query} is not an url***");
+                return;
             }
 
-            await _dataStorageService.RegisterMusicQueryAsync(Context.Guild.Id, collection.Name, query);
-            _audioService.RegisterChannel(Context.Guild, targetChannel.Id);
-            _audioService.AddAudios(Context.Guild.Id, collection.Audios, now);
-            await _audioService.PlayQueueAsync(Context.Guild.Id, message);
+            await PlayByUrlAsync(link, targetChannel, quantity, now);
         });
+    }
+    
+
+    [SlashCommand(name: "search",
+        description: "Searches music in the specified music service (VK default)")]
+    public async Task SearchVKAsync(
+        [Summary("query", "Search query")]
+        [Autocomplete(typeof(SearchAutocompleteHandler<YandexMusicProviderController>))]
+        string query,
+        
+        [Summary("service", "Music service to search in")]
+        MusicProvider? provider = null,
+        
+        [Summary("searchFor", "Type of the entity to search for")]
+        MusicCollectionType searchFor = MusicCollectionType.Track,
+        
+        [Summary("now", "Flag to put the fetched songs in the head of the playlist")]
+        bool now = false)
+    {
+        await MethodWrapper(async () => {
+            await _botService.EnsureBotIsReady(Context.Interaction);
+            await DeferAsync();
+            await EnsureInMusicChannel();
+            
+            SocketVoiceChannel? targetChannel = GetVoiceChannelWithCurrentUser();
+            if (targetChannel is null) {
+                await ModifyOriginalResponseAsync(m => m.Content = "User is not found in any of the voice channels");
+                return;
+            }
+
+            if (!targetChannel.CheckChannelPermissions(_voiceChannelPermissions)) {
+                MessageProperties missingPermissionsMessage = _UIService.GenerateMissingPermissionsMessage(
+                    $"Bot should have following permissions in the channel <#{targetChannel.Id}> in order to play music",
+                    _voiceChannelPermissions,
+                    targetChannel);
+                await ModifyOriginalResponseAsync(m => m.ApplyMessageProperties(missingPermissionsMessage));
+                return;
+            }
+
+            if (!Uri.TryCreate(query, UriKind.Absolute, out Uri? link) 
+                || link.Scheme != Uri.UriSchemeHttp && link.Scheme != Uri.UriSchemeHttps) {
+
+                await ModifyOriginalResponseAsync(m => m.Content =
+                    $"***{query} is not an url***");
+
+                return;
+            }
+
+            await PlayByUrlAsync(link, targetChannel, -1, now);
+        });
+    }
+
+    private async Task PlayByUrlAsync(Uri link, SocketVoiceChannel targetChannel, int quantity = -1, bool now = false)
+    {
+        BaseMusicProviderController? controller = link.FindMusicProviderController();
+        if (controller is null) {
+            await ModifyOriginalResponseAsync(m => m.Content = "***This link is not supported***");
+            return;
+        }
+
+        controller.AudiosProcessingStarted += audiosCount => {
+            Task.Run(async () =>
+                await ModifyOriginalResponseAsync(m => 
+                    m.Content = $"Processing 0/{audiosCount}"));
+        };
+
+        controller.AudiosProcessingProgressed += (audiosProcessed, audiosCount) => {
+            Task.Run(async () =>
+                await ModifyOriginalResponseAsync(m => 
+                    m.Content = $"Processing {audiosProcessed}/{audiosCount}"));
+        };
+
+        controller.AudiosProcessed += audiosProcessed => {
+            Task.Run(async () =>
+                await ModifyOriginalResponseAsync(m => 
+                    m.Content = $"{audiosProcessed} audios were processed"));
+        };
+        
+        MusicCollectionResponse collection = await controller.GetAudiosFromLinkAsync(link, quantity);
+        if (collection.IsError) {
+            _logger.LogInformation($"Error while getting music from {collection.Provider.Name} music provider " +
+                                   $"[guildId: {Context.Guild.Id}; query: {link.AbsoluteUri}]: " +
+                                   $"{collection.ErrorType} - {collection.ErrorMessage}");
+            switch (collection.ErrorType) {
+                case MusicResponseErrorType.PermissionDenied:
+                    await ModifyOriginalResponseAsync((m) 
+                        => m.Content = $"Permission to audio was denied");
+                    return;
+                
+                case MusicResponseErrorType.NoAudioFound:
+                    await ModifyOriginalResponseAsync((m) 
+                        => m.Content = $"No audio was found by the requested url");
+                    return;
+                
+                case MusicResponseErrorType.LinkNotSupported:
+                    await ModifyOriginalResponseAsync((m) 
+                        => m.Content = $"Bot is not able to parse this type of link");
+                    return;
+                default:
+                    return;
+            }
+        }
+
+        await ModifyOriginalResponseAsync(m => m.Content = 
+            $"Found {collection.Audios.Count()} audios");
+
+        await _dataStorageService.RegisterMusicQueryAsync(Context.Guild.Id, collection.Name, link.AbsoluteUri);
+        _audioService.RegisterChannel(Context.Guild, targetChannel.Id);
+        _audioService.AddAudios(Context.Guild.Id, collection.Audios, now);
+        await _audioService.PlayQueueAsync(Context.Guild.Id, $"**{collection.Audios.Count()}** tracks from {collection.Name} were added to the queue");
     }
 
     private async Task MethodWrapper(Func<Task> inner)
@@ -187,7 +222,7 @@ public class MusicModule : InteractionModuleBase<SocketInteractionContext>
 
         if (Context.Channel.Id != guild.MusicChannelId.Value) {
             await ModifyOriginalResponseAsync(m =>
-                m.Content = "Music player commands can only be executed in preregistered music channel");
+                m.Content = "Music player commands can only be executed in the preregistered music channel");
             throw new InteractionCommandException(Context.Interaction, InteractionCommandError.Exception,
                 "Attempt to execute command of a music module in the channel, " +
                 "that is not registered as a music channel");

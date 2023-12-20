@@ -9,6 +9,8 @@ public abstract class BaseMusicProviderController :
     IEquatable<BaseMusicProviderController>,
     IRequireInitiationService
 {
+    public static int MaxSearchResultsCount = 25;
+
     public event Action<int>? AudiosProcessingStarted;
     public event Action<int, int>? AudiosProcessingProgressed;
     public event Action<int>? AudiosProcessed;
@@ -37,6 +39,12 @@ public abstract class BaseMusicProviderController :
     /// Gets a single audio from a search query.
     /// </summary>
     public abstract Task<MusicCollectionResponse> GetAudioFromSearchQueryAsync(string query);
+
+    /// <summary>
+    /// Perform a search by a query
+    /// and return a list of found entities.
+    /// </summary>
+    public abstract Task<MusicSearchResult> SearchAsync(string query, MusicCollectionType targetCollectionType);
 
     protected void OnAudiosProcessingStarted(int audiosToProcess)
     {

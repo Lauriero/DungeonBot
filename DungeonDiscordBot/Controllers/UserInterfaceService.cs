@@ -11,7 +11,10 @@ using DungeonDiscordBot.ButtonHandlers;
 using DungeonDiscordBot.Controllers.Abstraction;
 using DungeonDiscordBot.Model;
 using DungeonDiscordBot.Model.Database;
+using DungeonDiscordBot.Model.MusicProviders;
 using DungeonDiscordBot.Utilities;
+
+using VkNet.Model;
 
 namespace DungeonDiscordBot.Controllers;
 
@@ -103,10 +106,18 @@ public class UserInterfaceService : IUserInterfaceService
         string nextSongsList = queue.Count > 1 ? "📋 **Next songs:**\n" : "";
         for (int i = 1 + (pageNumber - 1) * 10; i < 11 + (pageNumber - 1) * 10 && i < queue.Count; i++) {
             AudioQueueRecord record = queue.ElementAt(i);
-            if (i < 10) {
-                nextSongsList += $"`[{i}]`‎ ‎‏‏‎‎ ‎ ‎‏‏‎‎ {record.Author} - {record.Title}\n";
+            
+            string title;
+            if (record.PublicUrl is not null) {
+                title = $"[{record.Author} - {record.Title}]({record.PublicUrl})";
             } else {
-                nextSongsList += $"`[{i}]`‎ ‎‏‏‎‎ {record.Author} - {record.Title}\n";
+                title = $"{record.Author} - {record.Title}";
+            }
+            
+            if (i < 10) {
+                nextSongsList += $"`[{i}]`‎ ‎‏‏‎‎ ‎ ‎‏‏‎‎ {title}\n";
+            } else {
+                nextSongsList += $"`[{i}]`‎ ‎‏‏‎‎ {title}\n";
             }
         }
 
@@ -125,9 +136,12 @@ public class UserInterfaceService : IUserInterfaceService
 
             authorBuilder = new EmbedAuthorBuilder()
                 .WithName($"Now playing: {firstRecord.Author} - {firstRecord.Title}")
-                .WithUrl("https://google.com/")
                 .WithIconUrl(firstRecord.Provider.Value.LogoUri);
 
+            if (firstRecord.PublicUrl is not null) {
+                authorBuilder.WithUrl(firstRecord.PublicUrl);
+            }
+            
             TimeSpan elapsed = playerMetadata.Elapsed;
             TimeSpan total = firstRecord.Duration;
 
@@ -333,7 +347,7 @@ public class UserInterfaceService : IUserInterfaceService
             embedDescriptionBuilder.Append($" **{Enum.GetName(requiredPermission).SplitCamelCase().ToLower().FirstCharToUpperCase()}**");
             embedDescriptionBuilder.AppendLine();
         }
-        
+
         MessageProperties properties = new MessageProperties();
         properties.Embed = new EmbedBuilder()
             .WithColor(EmbedColors.Error)
@@ -351,5 +365,6 @@ public class UserInterfaceService : IUserInterfaceService
         public static readonly Color OK = new Color(14, 189, 17);
         public static readonly Color Error = new Color(220, 16, 71);
         public static readonly Color Paused = new Color(235, 173, 15);
+        public static readonly Color Info = new Color(17, 227, 227);
     }
 }

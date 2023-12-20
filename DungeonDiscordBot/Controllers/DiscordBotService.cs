@@ -64,7 +64,7 @@ namespace DungeonDiscordBot.Controllers
                 await _dataStorageService.UnregisterGuild(guild.Id);
                 _logger.LogInformation($"Bot has left a guild {guild.Name} with id - {guild.Id}");
             };
-            
+
             _client.InteractionCreated += async interaction => {
                 IResult result = await _interactions.ExecuteCommandAsync(
                     new SocketInteractionContext(_client, interaction), _serviceProvider);
@@ -79,10 +79,12 @@ namespace DungeonDiscordBot.Controllers
 
             _client.ButtonExecuted += ClientOnButtonExecuted;
             
+            
             _client.Ready += async () => {
-                await _interactions.RegisterCommandsGloballyAsync();
-
+                //await _interactions.RegisterCommandsGloballyAsync();
                 foreach (Guild guild in await _dataStorageService.GetMusicGuildsAsync()) {
+                    await _interactions.RegisterCommandsToGuildAsync(guild.Id);
+                    
                     SocketTextChannel musicChannel = await GetChannelAsync(guild.MusicChannelId!.Value);
                     _dataStorageService.AddMusicControlChannel(guild.Id, musicChannel);
 

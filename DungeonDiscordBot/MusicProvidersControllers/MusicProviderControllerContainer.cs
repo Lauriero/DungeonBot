@@ -34,6 +34,12 @@ public class MusicProviderControllerContainer : BaseMusicProviderController
         return Instance.GetAudioFromSearchQueryAsync(query);
     }
 
+    public override Task<MusicSearchResult> SearchAsync(string query, MusicCollectionType targetCollectionType)
+    {
+        EnsureInstanceInitialized();
+        return Instance.SearchAsync(query, targetCollectionType);
+    }
+
     [MemberNotNull(nameof(Instance))]
     private void EnsureInstanceInitialized()
     {

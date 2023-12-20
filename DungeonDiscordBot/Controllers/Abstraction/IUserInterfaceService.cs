@@ -5,6 +5,7 @@ using Discord.WebSocket;
 
 using DungeonDiscordBot.Controllers.Abstraction;
 using DungeonDiscordBot.Model;
+using DungeonDiscordBot.Model.MusicProviders;
 
 namespace DungeonDiscordBot.Controllers;
 
@@ -28,7 +29,7 @@ public interface IUserInterfaceService
     /// </summary>
     Task UpdateSongsQueueMessageAsync(ulong guildId, ConcurrentQueue<AudioQueueRecord> queue, 
         MusicPlayerMetadata playerMetadata, string message = "", CancellationToken token = default);
-    
+
     MessageProperties GenerateMissingPermissionsMessage(
         string description,
         ChannelPermission[] requiredPermissions,
