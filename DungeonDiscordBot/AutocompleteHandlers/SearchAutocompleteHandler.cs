@@ -6,24 +6,17 @@ using Discord;
 using Discord.Interactions;
 
 using DungeonDiscordBot.Model.MusicProviders;
+using DungeonDiscordBot.Model.MusicProviders.Search;
 using DungeonDiscordBot.MusicProvidersControllers;
 
 namespace DungeonDiscordBot.AutocompleteHandlers;
 
-public class SearchAutocompleteHandler<TProvider> : AutocompleteHandler
-    where TProvider : BaseMusicProviderController
+public class SearchAutocompleteHandler : AutocompleteHandler
 {
     public const string QUERY_PARAMETER_NAME = "query";
     public const string SERVICE_PARAMETER_NAME = "service";
     public const string TARGET_COLLECTION_TYPE_PARAMETER_NAME = "search-for";
-    
-    private readonly BaseMusicProviderController _providerController;
 
-    public SearchAutocompleteHandler()
-    {
-        _providerController = MusicProvider.FromProviderType(typeof(TProvider));
-    }
-    
     public override async Task<AutocompletionResult> GenerateSuggestionsAsync(IInteractionContext context, IAutocompleteInteraction autocompleteInteraction,
         IParameterInfo parameter, IServiceProvider services)
     {
@@ -41,14 +34,24 @@ public class SearchAutocompleteHandler<TProvider> : AutocompleteHandler
                 out AutocompleteOption? searchForOption) && searchForOption.Value is string searchForOptionValue) {
             targetCollectionType = Enum.Parse<MusicCollectionType>(searchForOptionValue);
         }
-        
-        MusicSearchResult searchResults = 
-            await providerController
-                .SearchAsync(autocompleteInteraction.Data.Current.Value.ToString()!, targetCollectionType);
-        
-        return AutocompletionResult.FromSuccess(searchResults.Entities
-            .Take(25)
-            .Select(r => new AutocompleteResult(r.Name, r.Link)));
+
+        string query = autocompleteInteraction.Data.Current.Value.ToString()!;
+        if (string.IsNullOrWhiteSpace(query)) {
+            return AutocompletionResult.FromSuccess();
+        }
+
+        MusicSearchResult searchResults = await providerController.SearchAsync(query, targetCollectionType);
+        List<AutocompleteResult> results = new List<AutocompleteResult>();
+        foreach (SearchResultEntity entity in searchResults.Entities.Take(25)) {
+            string name = entity.Name;
+            if (name.Length > 100) {
+                name = name.Substring(0, 100);
+            }
+            
+            results.Add(new AutocompleteResult(name, entity.Link));
+        }
+
+        return AutocompletionResult.FromSuccess(results);
     }
     
     public static bool TryGetOptionByParameterName(IAutocompleteInteraction interaction, string parameterName, 

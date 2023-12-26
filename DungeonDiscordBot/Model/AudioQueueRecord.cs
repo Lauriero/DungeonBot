@@ -1,15 +1,13 @@
-﻿using System.Diagnostics;
-using System.Diagnostics.Contracts;
-
-using DungeonDiscordBot.Model.MusicProviders;
+﻿using DungeonDiscordBot.Model.MusicProviders;
 using DungeonDiscordBot.Utilities;
 
 namespace DungeonDiscordBot.Model;
 
+[Serializable]
 public class AudioQueueRecord
 {
     /// <summary>
-    /// Provider that fetches this audio.
+    /// Provider that has fetched this audio.
     /// </summary>
     public MusicProvider Provider { get; }
     
@@ -24,7 +22,6 @@ public class AudioQueueRecord
     
     public TimeSpan Duration { get; }
 
-    
     /// <summary>
     /// Uri to the audio content.
     /// </summary>

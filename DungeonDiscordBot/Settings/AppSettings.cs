@@ -1,6 +1,6 @@
-﻿namespace DungeonDiscordBot;
+﻿namespace DungeonDiscordBot.Settings;
 
-    public class AppSettings
+public class AppSettings
 {
     public const string OPTIONS_SECTION_NAME = nameof(AppSettings); 
     

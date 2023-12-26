@@ -18,6 +18,7 @@
 
     <ItemGroup>
       <PackageReference Include="Ardalis.SmartEnum" Version="2.1.0" />
+      <PackageReference Include="Ardalis.SmartEnum.JsonNet" Version="2.1.0" />
       <PackageReference Include="CaseConverter" Version="2.0.1" />
       <PackageReference Include="ConcurrentLinkedList" Version="1.0.42" />
       <PackageReference Include="Discord.Net" Version="3.10.0" />
@@ -29,7 +30,7 @@
         <PrivateAssets>all</PrivateAssets>
         <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       </PackageReference>
-      <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="7.0.0" />
+      <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="8.0.0" />
       <PackageReference Include="Microsoft.Extensions.Hosting" Version="7.0.1" />
       <PackageReference Include="Microsoft.Extensions.Logging" Version="7.0.0" />
       <PackageReference Include="Pomelo.EntityFrameworkCore.MySql" Version="7.0.0" />
@@ -39,7 +40,6 @@
       <PackageReference Include="Serilog.Extensions.Logging" Version="3.1.0" />
       <PackageReference Include="Serilog.Settings.Configuration" Version="3.4.0" />
       <PackageReference Include="Serilog.Sinks.Console" Version="4.1.0" />
-      <PackageReference Include="VkNet.AudioBypassService" Version="1.7.6" />
     </ItemGroup>
 
     <ItemGroup>
@@ -55,6 +55,15 @@
       <None Update="libsodium.dll">
         <CopyToOutputDirectory>Always</CopyToOutputDirectory>
       </None>
+    </ItemGroup>
+
+    <ItemGroup>
+      <Compile Remove="Model\MusicProviders\Vk\ResponseVk.cs" />
+      <Compile Remove="Controllers\VkService.cs" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <ProjectReference Include="..\VkNet.AudioApi\VkNet.AudioApi.csproj" />
     </ItemGroup>
 
 </Project>

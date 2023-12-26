@@ -1,20 +1,24 @@
-﻿using System.Collections.ObjectModel;
-using System.Text.RegularExpressions;
+﻿using System.Text.RegularExpressions;
 
 using DungeonDiscordBot.Model;
-using DungeonDiscordBot.Model.Database;
 using DungeonDiscordBot.Model.MusicProviders;
+using DungeonDiscordBot.Model.MusicProviders.Search;
+using DungeonDiscordBot.Settings;
 
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Logging;
 
-using VkNet;
 using VkNet.Abstractions;
-using VkNet.AudioBypassService.Extensions;
+using VkNet.AudioApi;
+using VkNet.AudioApi.Model;
+using VkNet.AudioApi.Model.General;
+using VkNet.Enums.Filters;
 using VkNet.Exception;
 using VkNet.Model;
+using VkNet.Model.RequestParams;
 using VkNet.Utils;
+
+using Group = VkNet.AudioApi.Model.Group;
 
 namespace DungeonDiscordBot.MusicProvidersControllers;
 
@@ -23,12 +27,16 @@ public class VkMusicProviderController : BaseMusicProviderController
     public override string LinksDomainName => "vk.com";
     public override string LogoUri => "http://larc.tech/content/dungeon-bot/logo-vk.png";
 
-    private IVkApi _api = null!;
+    private readonly IVkApi _vkApi;
+    private readonly IVkAudioApi _audioApi;
     private readonly ILogger<VkMusicProviderController> _logger;
     private readonly AppSettings _settings;
 
-    public VkMusicProviderController(IOptions<AppSettings> settings, ILogger<VkMusicProviderController> logger)
+    public VkMusicProviderController(IOptions<AppSettings> settings, ILogger<VkMusicProviderController> logger, 
+        IVkAudioApi audioApi, IVkApi vkApi)
     {
+        _audioApi = audioApi;
+        _vkApi = vkApi;
         _logger = logger;
         _settings = settings.Value;
     }
@@ -37,13 +45,9 @@ public class VkMusicProviderController : BaseMusicProviderController
     {
         _logger.LogInformation("Initializing VKMusic provider...");
 
-        ServiceCollection services = new ServiceCollection();
-        services.AddAudioBypass();
-        
-        _api = new VkApi(services);   
-        await _api.AuthorizeAsync(new ApiAuthParams {
-            Login = _settings.VKLogin,
-            Password = _settings.VKPassword
+        await _audioApi.AuthAsync(_settings.VKLogin, _settings.VKPassword, () => {
+            Console.Write("Insert code: ");
+            return Console.ReadLine()!;
         });
         
         _logger.LogInformation("VKMusic provider initialized");
@@ -52,7 +56,7 @@ public class VkMusicProviderController : BaseMusicProviderController
     public override async Task<MusicCollectionResponse> GetAudiosFromLinkAsync(Uri link, int count)
     {
         string url = link.AbsoluteUri;
-        Regex songRegex = new Regex(@".+audio(-?\d+)_(\d+)_(.+)");
+        Regex songRegex = new Regex(@".+audio(-?\d+)_(\d+)(_(.+))?");
         Regex albumRegex = new Regex(@".+album/([\d-]+)_(\d+)(_(.+))?");
         Regex playlistRegex = new Regex(@".+playlist/([\d-]+)_(\d+)(_(.+))?");
         Regex sovaPlaylistRegex = new Regex(@".+audio_playlist([\d-]+)_(\d+)/(_(.+))?");
@@ -69,11 +73,10 @@ public class VkMusicProviderController : BaseMusicProviderController
         if (songMatch.Success) {
             userId = Convert.ToInt64(songMatch.Groups[1].Value);
             long audioId = Convert.ToInt64(songMatch.Groups[2].Value);
-            accessToken = songMatch.Groups[3].Value;;
 
             try {
-                IEnumerable<Audio> result = await GetAudio(userId, audioId, accessToken);
-                audios.AddRange(result);
+                audios.AddRange(await _audioApi.GetAudiosByIdAsync(
+                    new[] { $"{userId}_{audioId}" }));
             } catch (AudioAccessDeniedException) {
                 return MusicCollectionResponse.FromError(MusicProvider.VK, MusicResponseErrorType.PermissionDenied, 
                     "Access to audio is denied");
@@ -85,6 +88,11 @@ public class VkMusicProviderController : BaseMusicProviderController
             }
 
             Audio firstAudio = audios.First();
+            if (string.IsNullOrEmpty(firstAudio.Url)) {
+                return MusicCollectionResponse.FromError(MusicProvider.VK, MusicResponseErrorType.PermissionDenied, 
+                    "Access to audio is denied");
+            }
+            
             return MusicCollectionResponse.FromSuccess(MusicProvider.VK, 
                 name: $"{firstAudio.Artist} - {firstAudio.Title}",
                 audios: new [] {
@@ -92,8 +100,8 @@ public class VkMusicProviderController : BaseMusicProviderController
                         provider:          MusicProvider.VK, 
                         author:            firstAudio.Artist, 
                         title:             firstAudio.Title,
-                        audioUri:          firstAudio.Url.AbsoluteUri,
-                        audioThumbnailUri: firstAudio.Album?.Thumb.Photo135,
+                        audioUri:          firstAudio.Url,
+                        audioThumbnailUri: firstAudio.Album?.Thumb?.Photo135,
                         duration:          TimeSpan.FromSeconds(firstAudio.Duration),
                         publicUrl:         $"https://vk.com/audio{firstAudio.OwnerId}_{firstAudio.Id}_{firstAudio.AccessKey}")
                 }
@@ -113,14 +121,18 @@ public class VkMusicProviderController : BaseMusicProviderController
                 accessToken = albumMatch.Groups[4].Value;
             }
             
-            audios.AddRange(await GetAudios(userId, playlistId.Value, accessToken));
+            audios.AddRange(await _audioApi.AudioGetAsync(
+                playlistId.Value,
+                userId, 
+                accessToken));
+            
             if (!audios.Any()) {
                 return MusicCollectionResponse.FromError(MusicProvider.VK, MusicResponseErrorType.NoAudioFound, 
                     "There's nothing in the requested album");
             }
 
             Audio firstAudio = audios.First();
-            collectionName = $"{firstAudio.Artist} - {firstAudio.Album.Title}";
+            collectionName = $"{firstAudio.Artist} - {firstAudio.Album!.Title}";
         } else {
             return MusicCollectionResponse.FromError(MusicProvider.VK, MusicResponseErrorType.LinkNotSupported, 
                 $"Current provider can't handle urls like {url}");
@@ -135,11 +147,29 @@ public class VkMusicProviderController : BaseMusicProviderController
                 accessToken = match.Groups[4].Value;
             }
             
-            AudioPlaylist playlist = await _api.Audio.GetPlaylistByIdAsync(userId, playlistId.Value);
-            User playlistOwner = (await _api.Users.GetAsync(new[] {playlist.OwnerId!.Value})).First();
-            collectionName = $"{playlistOwner.FirstName} {playlistOwner.LastName} - {playlist.Title}";
-            
-            audios.AddRange(await GetAudios(userId, playlistId.Value, accessToken));
+            Playlist playlist = await _audioApi.GetPlaylistAsync(playlistId.Value, accessToken, userId);
+
+            if (playlist.OwnerId > 0) {
+                User playlistOwner = (await _audioApi.GetUserAsync(playlist.OwnerId))!;
+                collectionName = $"{playlistOwner.FirstName} {playlistOwner.LastName} - {playlist.Title}";
+            } else {
+                long groupId = -1 * userId;
+                Group? group = await _audioApi.GetGroupByIdAsync(
+                    groupIds: new []{ groupId.ToString() },
+                    fields: GroupsFields.Description
+                );
+
+                if (group is null) {
+                    return;
+                }
+                
+                collectionName = $"{group.Name} - {playlist.Title}";
+            }
+
+            audios.AddRange(await _audioApi.AudioGetAsync(
+                playlistId.Value, 
+                userId, 
+                accessToken));
         }
 
         int toAddCount = audios.Count;
@@ -153,7 +183,7 @@ public class VkMusicProviderController : BaseMusicProviderController
         List<AudioQueueRecord> records = new List<AudioQueueRecord>();
         for (int i = 0; i < toAddCount; i++) {
             Audio audio = audios.ElementAt(i);
-            if (audio.Url is null) {
+            if (string.IsNullOrEmpty(audio.Url)) {
                 continue;
             }
             
@@ -161,24 +191,25 @@ public class VkMusicProviderController : BaseMusicProviderController
                 provider:          MusicProvider.VK, 
                 author:            audio.Artist, 
                 title:             audio.Title,
-                audioUri:          audio.Url.AbsoluteUri,
-                audioThumbnailUri: audio.Album?.Thumb.Photo135,
+                audioUri:          audio.Url,
+                audioThumbnailUri: audio.Album?.Thumb?.Photo135,
                 duration:          TimeSpan.FromSeconds(audio.Duration),
                 publicUrl:         $"https://vk.com/audio{audio.OwnerId}_{audio.Id}_{audio.AccessKey}"));
             addedCount++;
         }
         
         OnAudiosProcessed(addedCount);
+        if (addedCount == 0) {
+            return MusicCollectionResponse.FromError(MusicProvider.VK, MusicResponseErrorType.NoAudioFound, 
+                    "There's nothing in the requested album");
+        }
+        
         return MusicCollectionResponse.FromSuccess(MusicProvider.VK, collectionName, records);
     }
 
     public override async Task<MusicCollectionResponse> GetAudioFromSearchQueryAsync(string query)
     {
-        VkCollection<Audio> audios = await _api.Audio.SearchAsync(new AudioSearchParams {
-            Query = query,
-            Count = 1,
-            Autocomplete = true
-        });
+        List<Audio> audios = await _audioApi.SearchAudioAsync(query);
 
         if (audios.Count == 0) {
             return MusicCollectionResponse.FromError(MusicProvider.VK, MusicResponseErrorType.NoAudioFound, 
@@ -186,6 +217,11 @@ public class VkMusicProviderController : BaseMusicProviderController
         }
 
         Audio audio = audios.First();
+        if (string.IsNullOrEmpty(audio.Url)) {
+            return MusicCollectionResponse.FromError(MusicProvider.VK, MusicResponseErrorType.PermissionDenied, 
+                "Access to audio is denied");
+        }
+        
         return MusicCollectionResponse.FromSuccess(MusicProvider.VK, 
             name: $"{audio.Artist} - {audio.Title}",
             audios: new [] {
@@ -193,8 +229,8 @@ public class VkMusicProviderController : BaseMusicProviderController
                     provider:          MusicProvider.VK, 
                     author:            audio.Artist, 
                     title:             audio.Title,
-                    audioUri:          audio.Url.AbsoluteUri,
-                    audioThumbnailUri: audio.Album?.Thumb.Photo135,
+                    audioUri:          audio.Url,
+                    audioThumbnailUri: audio.Album?.Thumb?.Photo135,
                     duration:          TimeSpan.FromSeconds(audio.Duration),
                     publicUrl:         $"https://vk.com/audio{audio.OwnerId}_{audio.Id}_{audio.AccessKey}")
             }
@@ -203,41 +239,16 @@ public class VkMusicProviderController : BaseMusicProviderController
 
     public override async Task<MusicSearchResult> SearchAsync(string query, MusicCollectionType targetCollectionType)
     {
-        VkCollection<Audio> audios = await _api.Audio.SearchAsync(new AudioSearchParams {
+        VkCollection<VkNet.Model.Attachments.Audio> audios = await _vkApi.Audio.SearchAsync(new AudioSearchParams {
             Query = query,
-            Count = MaxSearchResultsCount,
-            Autocomplete = true
+            Autocomplete = true,
+            Count = MaxSearchResultsCount
         });
-
         return new MusicSearchResult(
             provider: MusicProvider.VK,
-            entities:   audios
+            entities: audios
                 .Select(a => new SearchResultEntity(
                     name: $"{a.Artist} - {a.Title}",
                     link: $"https://vk.com/audio{a.OwnerId}_{a.Id}_{a.AccessKey}")));
-    }
-
-    public async Task<IEnumerable<Audio>> GetAudios(long userId, long playlistId, string accessKey)
-    {
-        VkCollection<Audio> audios = await _api.Audio.GetAsync(new AudioGetParams {
-            PlaylistId = playlistId,
-            OwnerId = userId,
-            AccessKey = accessKey
-        });
-
-        return audios;
-    }
-    
-    public async Task<IEnumerable<Audio>> GetAudio(long userId, long audioId, string accessKey)
-    {
-        VkCollection<Audio> audios = await _api.Audio.GetAsync(new AudioGetParams {
-            AudioIds = new [] {
-                audioId
-            },
-            OwnerId = userId,
-            AccessKey = accessKey
-        });
-
-        return audios;
     }
 }

@@ -1,4 +1,5 @@
 ﻿using DungeonDiscordBot.Model.Database;
+using DungeonDiscordBot.Settings;
 
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;

@@ -1,4 +1,4 @@
-﻿namespace DungeonDiscordBot.Model.MusicProviders;
+﻿namespace DungeonDiscordBot.Model.MusicProviders.Search;
 
 public class MusicSearchResult
 {

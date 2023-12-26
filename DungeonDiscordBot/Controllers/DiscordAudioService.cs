@@ -8,6 +8,7 @@ using Discord.WebSocket;
 
 using DungeonDiscordBot.Controllers.Abstraction;
 using DungeonDiscordBot.Model;
+using DungeonDiscordBot.Settings;
 using DungeonDiscordBot.Utilities;
 
 using Microsoft.Extensions.Logging;

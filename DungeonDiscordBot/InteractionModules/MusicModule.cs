@@ -92,16 +92,16 @@ public class MusicModule : InteractionModuleBase<SocketInteractionContext>
     
 
     [SlashCommand(name: "search",
-        description: "Searches music in the specified music service (VK default)")]
-    public async Task SearchVKAsync(
-        [Summary("query", "Search query")]
-        [Autocomplete(typeof(SearchAutocompleteHandler<YandexMusicProviderController>))]
+        description: "Searches music in the specified music service")]
+    public async Task SearchAsync(
+        [Summary(SearchAutocompleteHandler.SERVICE_PARAMETER_NAME, "Music service to search in")]
+        MusicProvider provider,
+        
+        [Summary(SearchAutocompleteHandler.QUERY_PARAMETER_NAME, "Search query")]
+        [Autocomplete(typeof(SearchAutocompleteHandler))]
         string query,
         
-        [Summary("service", "Music service to search in")]
-        MusicProvider? provider = null,
-        
-        [Summary("searchFor", "Type of the entity to search for")]
+        [Summary(SearchAutocompleteHandler.TARGET_COLLECTION_TYPE_PARAMETER_NAME, "Type of the entity to search for")]
         MusicCollectionType searchFor = MusicCollectionType.Track,
         
         [Summary("now", "Flag to put the fetched songs in the head of the playlist")]

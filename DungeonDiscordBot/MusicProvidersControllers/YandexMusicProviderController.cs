@@ -2,6 +2,8 @@
 
 using DungeonDiscordBot.Model;
 using DungeonDiscordBot.Model.MusicProviders;
+using DungeonDiscordBot.Model.MusicProviders.Search;
+using DungeonDiscordBot.Settings;
 
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -97,8 +99,7 @@ public class YandexMusicProviderController : BaseMusicProviderController
                 return MusicCollectionResponse.FromError(MusicProvider.Yandex, MusicResponseErrorType.LinkNotSupported,
                     $"Current provider can't handle urls like {url}");
             }
-        } catch (YErrorResponse e) {
-            ;
+        } catch (YErrorResponse) {
             return MusicCollectionResponse.FromError(MusicProvider.Yandex, MusicResponseErrorType.NoAudioFound,
                 $"Current provider can't handle urls like {url}");
         }
