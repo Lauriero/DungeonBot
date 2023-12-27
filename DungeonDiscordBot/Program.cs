@@ -7,6 +7,7 @@ using Discord.WebSocket;
 using DungeonDiscordBot.ButtonHandlers;
 using DungeonDiscordBot.Controllers;
 using DungeonDiscordBot.Controllers.Abstraction;
+using DungeonDiscordBot.InternalAPIs.SpotifyDown.Extensions;
 using DungeonDiscordBot.Model;
 using DungeonDiscordBot.Model.MusicProviders;
 using DungeonDiscordBot.Settings;
@@ -60,6 +61,7 @@ namespace DungeonDiscordBot
                         .AddLogging()
                         .AddTransient<HttpClient>(HttpClientBuilder)
 
+                        .AddSpotifyDown()
                         .AddVkAudioApi()
                         .AddMusicProviders()
                         .AddButtonHandlers()
