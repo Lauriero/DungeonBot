@@ -12,10 +12,13 @@ using DungeonDiscordBot.Exceptions;
 using DungeonDiscordBot.Model;
 using DungeonDiscordBot.Model.Database;
 using DungeonDiscordBot.Model.MusicProviders;
+using DungeonDiscordBot.Model.MusicProviders.Search;
 using DungeonDiscordBot.MusicProvidersControllers;
 using DungeonDiscordBot.Utilities;
 
 using Microsoft.Extensions.Logging;
+
+using VkNet.Model;
 
 namespace DungeonDiscordBot.InteractionModules;
 
@@ -137,6 +140,58 @@ public class MusicModule : InteractionModuleBase<SocketInteractionContext>
             }
 
             await PlayByUrlAsync(link, targetChannel, -1, now);
+        });
+    }
+
+    [SlashCommand("gachify", "Does some gachi magic")]
+    public async Task GachifyAsync()
+    {
+        await MethodWrapper(async () => {
+            await _botService.EnsureBotIsReady(Context.Interaction);
+            await DeferAsync();
+            await EnsureInMusicChannel();
+
+            List<string> trackNames = new List<string>();
+            foreach (AudioQueueRecord track in _audioService.GetQueue(Context.Guild.Id)) {
+                trackNames.Add(new string(track.Title));
+            }
+            
+            await _audioService.ClearQueue(Context.Guild.Id);
+            await ModifyOriginalResponseAsync(m =>
+                m.Content = $"**Unstoppable** ***gachification*** **process has been started**\n" +
+                            $"**To gachify**: ***{trackNames.Count}*** **tracks**");
+
+            List<AudioQueueRecord> resultTracks = new List<AudioQueueRecord>();
+            BaseMusicProviderController vkProvider = MusicProvider.VK.Value;
+            foreach (string trackName in trackNames) {
+                MusicSearchResult searchResult = await vkProvider.SearchAsync($"{trackName} right version", MusicCollectionType.Track, 1);
+                if (!searchResult.Entities.Any()) {
+                    continue;
+                }
+
+                SearchResultEntity resultEntity = searchResult.Entities.First();
+                if (!resultEntity.Name.Contains("♂") && 
+                    !resultEntity.Name.Contains("right version", StringComparison.OrdinalIgnoreCase) ||
+                    !resultEntity.Name.Contains(trackName, StringComparison.OrdinalIgnoreCase)) {
+                    
+                    continue;
+                }
+
+                MusicCollectionResponse response = await vkProvider.GetAudiosFromLinkAsync(new Uri(resultEntity.Link), 1);
+                if (response.IsError || !response.Audios.Any()) {
+                    continue;
+                }
+
+                resultTracks.Add(response.Audios.First());
+            }
+            
+            await ModifyOriginalResponseAsync(m =>
+                m.Content = $"**Your queue has been gachified." +
+                            $"Transformed {resultTracks.Count} tracks out of {trackNames.Count} tracks**");
+            
+            _audioService.AddAudios(Context.Guild.Id, resultTracks, false);
+            await _audioService.PlayQueueAsync(Context.Guild.Id, 
+                $"**{resultTracks.Count}** gachi tracks were added to the queue");
         });
     }
 

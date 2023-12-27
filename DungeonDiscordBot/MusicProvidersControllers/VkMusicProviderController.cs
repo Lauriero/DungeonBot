@@ -207,42 +207,12 @@ public class VkMusicProviderController : BaseMusicProviderController
         return MusicCollectionResponse.FromSuccess(MusicProvider.VK, collectionName, records);
     }
 
-    public override async Task<MusicCollectionResponse> GetAudioFromSearchQueryAsync(string query)
-    {
-        List<Audio> audios = await _audioApi.SearchAudioAsync(query);
-
-        if (audios.Count == 0) {
-            return MusicCollectionResponse.FromError(MusicProvider.VK, MusicResponseErrorType.NoAudioFound, 
-                "There's no audio that match the search query");
-        }
-
-        Audio audio = audios.First();
-        if (string.IsNullOrEmpty(audio.Url)) {
-            return MusicCollectionResponse.FromError(MusicProvider.VK, MusicResponseErrorType.PermissionDenied, 
-                "Access to audio is denied");
-        }
-        
-        return MusicCollectionResponse.FromSuccess(MusicProvider.VK, 
-            name: $"{audio.Artist} - {audio.Title}",
-            audios: new [] {
-                new AudioQueueRecord(
-                    provider:          MusicProvider.VK, 
-                    author:            audio.Artist, 
-                    title:             audio.Title,
-                    audioUri:          audio.Url,
-                    audioThumbnailUri: audio.Album?.Thumb?.Photo135,
-                    duration:          TimeSpan.FromSeconds(audio.Duration),
-                    publicUrl:         $"https://vk.com/audio{audio.OwnerId}_{audio.Id}_{audio.AccessKey}")
-            }
-        );
-    }
-
-    public override async Task<MusicSearchResult> SearchAsync(string query, MusicCollectionType targetCollectionType)
+    public override async Task<MusicSearchResult> SearchAsync(string query, MusicCollectionType targetCollectionType, int? count = null)
     {
         VkCollection<VkNet.Model.Attachments.Audio> audios = await _vkApi.Audio.SearchAsync(new AudioSearchParams {
             Query = query,
             Autocomplete = true,
-            Count = MaxSearchResultsCount
+            Count = count ?? MaxSearchResultsCount
         });
         return new MusicSearchResult(
             provider: MusicProvider.VK,

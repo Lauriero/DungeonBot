@@ -29,16 +29,10 @@ public class MusicProviderControllerContainer : BaseMusicProviderController
         return Instance.GetAudiosFromLinkAsync(link, count);
     }
 
-    public override Task<MusicCollectionResponse> GetAudioFromSearchQueryAsync(string query)
+    public override Task<MusicSearchResult> SearchAsync(string query, MusicCollectionType targetCollectionType, int? count = null)
     {
         EnsureInstanceInitialized();
-        return Instance.GetAudioFromSearchQueryAsync(query);
-    }
-
-    public override Task<MusicSearchResult> SearchAsync(string query, MusicCollectionType targetCollectionType)
-    {
-        EnsureInstanceInitialized();
-        return Instance.SearchAsync(query, targetCollectionType);
+        return Instance.SearchAsync(query, targetCollectionType, count);
     }
 
     [MemberNotNull(nameof(Instance))]

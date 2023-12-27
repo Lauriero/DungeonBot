@@ -131,40 +131,12 @@ public class YandexMusicProviderController : BaseMusicProviderController
         return MusicCollectionResponse.FromSuccess(MusicProvider.Yandex, collectionName, records);
     }
 
-    public override async Task<MusicCollectionResponse> GetAudioFromSearchQueryAsync(string query)
-    {
-        YResponse<YSearch> searchResult = await _api.Search.TrackAsync(_apiAuth, query);
-        List<YSearchTrackModel> tracks = searchResult.Result.Tracks.Results;
-        if (tracks.Count == 0) {
-            return MusicCollectionResponse.FromError(MusicProvider.Yandex, MusicResponseErrorType.NoAudioFound, 
-                    "There's no audio that match the search query");
-        }
-
-        YTrack track = tracks.First();
-        string artists = string.Join(", ", track.Artists.Select(a => a.Name));
-        return MusicCollectionResponse.FromSuccess(MusicProvider.Yandex, 
-            name: $"{artists} - {track.Title}",
-            audios: new [] {
-                new AudioQueueRecord(
-                    provider:                 MusicProvider.Yandex, 
-                    author:                   track.Artists.First().Name, 
-                    title:                    track.Title,
-                    duration:                 TimeSpan.FromMilliseconds(track.DurationMs),
-                    audioUriFactory:          () => _api.Track.GetFileLinkAsync(_apiAuth, track),
-                    audioThumbnailUriFactory: () => track.CoverUri is null 
-                        ? Task.FromResult<string?>(null) 
-                        : Task.FromResult<string?>($"https://{track.CoverUri.Replace("%%", "200x200")}"),
-                    publicUrl:                $"https://music.yandex.ru/album/{track.Albums[0].Id}/track/{track.Id}")
-            }
-        );
-    }
-
-    public override async Task<MusicSearchResult> SearchAsync(string query, MusicCollectionType targetCollectionType)
+    public override async Task<MusicSearchResult> SearchAsync(string query, MusicCollectionType targetCollectionType, int? count = null)
     {
         switch (targetCollectionType) {
             case MusicCollectionType.Track:
                 YResponse<YSearch> trackSearchResult = await _api.Search.SearchAsync(_apiAuth, query, YSearchType.Track, 
-                    pageSize: MaxSearchResultsCount);
+                    pageSize: count ?? MaxSearchResultsCount);
                 return new MusicSearchResult(
                     provider: MusicProvider.Yandex,
                     entities:   trackSearchResult.Result.Tracks.Results

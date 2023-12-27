@@ -37,15 +37,10 @@ public abstract class BaseMusicProviderController :
     public abstract Task<MusicCollectionResponse> GetAudiosFromLinkAsync(Uri link, int count);
 
     /// <summary>
-    /// Gets a single audio from a search query.
-    /// </summary>
-    public abstract Task<MusicCollectionResponse> GetAudioFromSearchQueryAsync(string query);
-
-    /// <summary>
     /// Perform a search by a query
     /// and return a list of found entities.
     /// </summary>
-    public abstract Task<MusicSearchResult> SearchAsync(string query, MusicCollectionType targetCollectionType);
+    public abstract Task<MusicSearchResult> SearchAsync(string query, MusicCollectionType targetCollectionType, int? count = null);
 
     protected void OnAudiosProcessingStarted(int audiosToProcess)
     {

@@ -4,6 +4,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DungeonDiscordBot", "Dungeo
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "VkNet.AudioApi", "VkNet.AudioApi\VkNet.AudioApi.csproj", "{DE13DFF5-BCD9-41FB-868B-E289DC2A3250}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "test", "test\test.csproj", "{3EE12B5B-7B07-4CA6-BD08-51233F5F102F}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -18,5 +20,9 @@ Global
 		{DE13DFF5-BCD9-41FB-868B-E289DC2A3250}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{DE13DFF5-BCD9-41FB-868B-E289DC2A3250}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{DE13DFF5-BCD9-41FB-868B-E289DC2A3250}.Release|Any CPU.Build.0 = Release|Any CPU
+		{3EE12B5B-7B07-4CA6-BD08-51233F5F102F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{3EE12B5B-7B07-4CA6-BD08-51233F5F102F}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{3EE12B5B-7B07-4CA6-BD08-51233F5F102F}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{3EE12B5B-7B07-4CA6-BD08-51233F5F102F}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal
