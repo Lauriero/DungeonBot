@@ -383,6 +383,29 @@ public class UserInterfaceService : IUserInterfaceService
 
         return properties;
     }
+    
+    public MessageProperties GenerateMusicServiceLinkNotSupportedMessage(BaseMusicProviderController providerControllerUsed, string userQuery)
+    {
+        StringBuilder descriptionBuilder = new StringBuilder();
+        descriptionBuilder.AppendLine("It seems like the music service couldn't handle this link");
+        descriptionBuilder.AppendLine($"Bot received: {userQuery}");
+        descriptionBuilder.AppendLine();
+        descriptionBuilder.AppendLine($"**What links {providerControllerUsed.DisplayName} can handle:**");
+        descriptionBuilder.AppendLine(providerControllerUsed.SupportedLinks);
+        
+        MessageProperties properties = new MessageProperties();
+        properties.Embed = new EmbedBuilder()
+            .WithColor(EmbedColors.Error)
+            .WithAuthor(new EmbedAuthorBuilder {
+                Name = "Bot is unable to parse the query parameter",
+                IconUrl = providerControllerUsed.LogoUri
+            })
+            .WithCurrentTimestamp()
+            .WithDescription(descriptionBuilder.ToString())
+            .Build();
+
+        return properties;
+    }
 
     private static class EmbedColors
     {

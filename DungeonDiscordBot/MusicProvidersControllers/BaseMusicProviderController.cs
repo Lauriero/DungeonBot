@@ -20,7 +20,8 @@ public abstract class BaseMusicProviderController :
     public abstract string LinksDomainName { get; }
     public abstract string LogoEmojiId { get; }
     public abstract string LogoUri { get; }
-
+    public abstract string SupportedLinks { get; }
+    
     public int InitializationPriority => 0;
     
     public Type ProviderType { get; protected set; }

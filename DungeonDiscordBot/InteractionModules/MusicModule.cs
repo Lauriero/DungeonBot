@@ -239,8 +239,8 @@ public class MusicModule : InteractionModuleBase<SocketInteractionContext>
                     return;
                 
                 case MusicResponseErrorType.LinkNotSupported:
-                    await ModifyOriginalResponseAsync((m) 
-                        => m.Content = $"Bot is not able to parse this type of link");
+                    await ModifyOriginalResponseAsync(m => m.ApplyMessageProperties(
+                        _UIService.GenerateMusicServiceLinkNotSupportedMessage(controller, link.AbsoluteUri)));
                     return;
                 default:
                     return;

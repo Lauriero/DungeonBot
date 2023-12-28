@@ -26,6 +26,12 @@ public class SpotifyMusicProviderController : BaseMusicProviderController
     public override string LogoEmojiId => "<:logo_spotify:1189750897711001631>";
     public override string LogoUri => "http://larc.tech/content/dungeon-bot/logo-spotify.png";
 
+    public override string SupportedLinks =>
+        "Use https://open.spotify.com/track/{trackId} to retrieve a single track\n" +
+        "Use https://open.spotify.com/album/{albumId} to retrieve tracks from the album\n" +
+        "Use https://open.spotify.com/artist/{artistId} to retrieve top tracks of the artist\n" +
+        "Use https://open.spotify.com/playlist/{playlistId} to retrieve tracks from the playlist";
+
     private readonly SpotifyClient _spotifyApi;
     private readonly YoutubeClient _youtubeApi;
     private readonly ISpotifyDownApi _spotifyDownApi;

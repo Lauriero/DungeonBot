@@ -28,6 +28,11 @@ public class VkMusicProviderController : BaseMusicProviderController
     public override string LinksDomainName => "vk.com";
     public override string LogoEmojiId => "<:logo_vk:1189750001262403604>";
     public override string LogoUri => "http://larc.tech/content/dungeon-bot/logo-vk.png";
+    public override string SupportedLinks =>
+        "Use https://vk.com/audio{trackData} to retrieve a single track\n" +
+        "Use https://vk.com/music/album/{albumData} to retrieve tracks from the album\n" +
+        "Use https://vk.com/music/playlist/{playlistData} to retrieve tracks from the playlist\n" +
+        "Use https://vk.com/audio_playlist{playlistData} to retrieve tracks from the sova playlist";
 
     private readonly IVkApi _vkApi;
     private readonly IVkAudioApi _audioApi;

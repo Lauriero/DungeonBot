@@ -6,6 +6,7 @@ using Discord.WebSocket;
 using DungeonDiscordBot.Controllers.Abstraction;
 using DungeonDiscordBot.Model;
 using DungeonDiscordBot.Model.MusicProviders;
+using DungeonDiscordBot.MusicProvidersControllers;
 
 namespace DungeonDiscordBot.Controllers;
 
@@ -36,4 +37,6 @@ public interface IUserInterfaceService
         SocketGuildChannel channel);
 
     MessageProperties GenerateMusicServiceNotFoundMessage(IUser botUser, string userQuery);
+
+    MessageProperties GenerateMusicServiceLinkNotSupportedMessage(BaseMusicProviderController providerControllerUsed, string userQuery);
 }

@@ -13,6 +13,7 @@ public class MusicProviderControllerContainer : BaseMusicProviderController
     public override string LinksDomainName => Instance?.LinksDomainName ?? throw new NotImplementedException();
     public override string LogoEmojiId => Instance?.LogoEmojiId ?? throw new NotImplementedException();
     public override string LogoUri => Instance?.LogoUri ?? throw new NotImplementedException();
+    public override string SupportedLinks => Instance?.SupportedLinks ?? throw new NotImplementedException();
 
     public MusicProviderControllerContainer(Type destinationType) : base(destinationType) { }
     

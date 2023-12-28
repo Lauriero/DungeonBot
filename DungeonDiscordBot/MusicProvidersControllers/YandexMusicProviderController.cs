@@ -24,6 +24,11 @@ public class YandexMusicProviderController : BaseMusicProviderController
     public override string LinksDomainName => "music.yandex.ru";
     public override string LogoEmojiId => "<:logo_yandex_music:1189750003141455922>";
     public override string LogoUri => "http://larc.tech/content/dungeon-bot/logo-yandex-music.png";
+    public override string SupportedLinks =>
+        "Use https://music.yandex.ru/album/{albumId}/track/{trackId} to retrieve a single track\n" +
+        "Use https://music.yandex.ru/album/{albumId} to retrieve tracks from the album\n" +
+        "Use https://music.yandex.ru/artist/{artistId} to retrieve all artist's tracks\n" +
+        "Use https://music.yandex.ru/users/{username}/playlists/{playlistId} to retrieve tracks from the playlist";
 
     private readonly YandexMusicApi _api;
     private readonly AuthStorage _apiAuth;
