@@ -199,7 +199,8 @@ public class MusicModule : InteractionModuleBase<SocketInteractionContext>
     {
         BaseMusicProviderController? controller = link.FindMusicProviderController();
         if (controller is null) {
-            await ModifyOriginalResponseAsync(m => m.Content = "***This link is not supported***");
+            await ModifyOriginalResponseAsync(m => m.ApplyMessageProperties(
+                _UIService.GenerateMusicServiceNotFoundMessage(Context.Guild.CurrentUser, link.AbsoluteUri)));
             return;
         }
 
@@ -259,7 +260,7 @@ public class MusicModule : InteractionModuleBase<SocketInteractionContext>
     {
         try {
             await inner();
-            await Task.Delay(5000);
+            await Task.Delay(15000);
             await DeleteOriginalResponseAsync();
         } catch (Exception e) {
             await _botService.HandleInteractionException(e);

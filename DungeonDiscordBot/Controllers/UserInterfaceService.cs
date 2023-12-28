@@ -12,6 +12,7 @@ using DungeonDiscordBot.Controllers.Abstraction;
 using DungeonDiscordBot.Model;
 using DungeonDiscordBot.Model.Database;
 using DungeonDiscordBot.Model.MusicProviders;
+using DungeonDiscordBot.MusicProvidersControllers;
 using DungeonDiscordBot.Utilities;
 
 using VkNet.Model;
@@ -47,9 +48,6 @@ public class UserInterfaceService : IUserInterfaceService
         await _dataStorageService.RegisterMusicChannel(guildId, musicControlChannel, message.Id, token);
     }
     
-    /// <summary>
-    /// Updates the current message that is used to control music.
-    /// </summary>
     public async Task UpdateSongsQueueMessageAsync(ulong guildId, 
         ConcurrentQueue<AudioQueueRecord> queue, MusicPlayerMetadata playerMetadata, 
         string message = "", CancellationToken token = default)
@@ -355,6 +353,32 @@ public class UserInterfaceService : IUserInterfaceService
             .WithCurrentTimestamp()
             .WithTitle(description)
             .WithDescription(embedDescriptionBuilder.ToString())
+            .Build();
+
+        return properties;
+    }
+
+    public MessageProperties GenerateMusicServiceNotFoundMessage(IUser botUser, string userQuery)
+    {
+        StringBuilder descriptionBuilder = new StringBuilder();
+        descriptionBuilder.AppendLine("It seems like the audio source points to the unsupported music service.");
+        descriptionBuilder.AppendLine($"Bot received: {userQuery}");
+        descriptionBuilder.AppendLine();
+        descriptionBuilder.AppendLine("**List of the supported music services:**");
+
+        foreach (MusicProvider provider in MusicProvider.List.OrderBy(p => p.Value.DisplayName.Length)) {
+            BaseMusicProviderController controller = provider.Value;
+            descriptionBuilder.AppendLine($"{controller.LogoEmojiId} ‎ ‎‏‏‎‎**{controller.DisplayName} — " +
+                                          $"https://{controller.LinksDomainName}/**");
+        }
+        
+        MessageProperties properties = new MessageProperties();
+        properties.Embed = new EmbedBuilder()
+            .WithColor(EmbedColors.Error)
+            .WithAuthor(botUser)
+            .WithCurrentTimestamp()
+            .WithTitle("Bot is unable to parse the query parameter")
+            .WithDescription(descriptionBuilder.ToString())
             .Build();
 
         return properties;

@@ -9,7 +9,9 @@ namespace DungeonDiscordBot.MusicProvidersControllers;
 public class MusicProviderControllerContainer : BaseMusicProviderController
 {
     public BaseMusicProviderController? Instance { private get; set; }
+    public override string DisplayName => Instance?.DisplayName ?? throw new NotImplementedException();
     public override string LinksDomainName => Instance?.LinksDomainName ?? throw new NotImplementedException();
+    public override string LogoEmojiId => Instance?.LogoEmojiId ?? throw new NotImplementedException();
     public override string LogoUri => Instance?.LogoUri ?? throw new NotImplementedException();
 
     public MusicProviderControllerContainer(Type destinationType) : base(destinationType) { }

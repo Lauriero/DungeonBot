@@ -34,4 +34,6 @@ public interface IUserInterfaceService
         string description,
         ChannelPermission[] requiredPermissions,
         SocketGuildChannel channel);
+
+    MessageProperties GenerateMusicServiceNotFoundMessage(IUser botUser, string userQuery);
 }

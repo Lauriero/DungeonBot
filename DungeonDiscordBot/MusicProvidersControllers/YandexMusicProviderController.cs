@@ -20,7 +20,9 @@ namespace DungeonDiscordBot.MusicProvidersControllers;
 
 public class YandexMusicProviderController : BaseMusicProviderController
 {
+    public override string DisplayName => "YandexMusic";
     public override string LinksDomainName => "music.yandex.ru";
+    public override string LogoEmojiId => "<:logo_yandex_music:1189750003141455922>";
     public override string LogoUri => "http://larc.tech/content/dungeon-bot/logo-yandex-music.png";
 
     private readonly YandexMusicApi _api;

@@ -24,7 +24,9 @@ namespace DungeonDiscordBot.MusicProvidersControllers;
 
 public class VkMusicProviderController : BaseMusicProviderController
 {
+    public override string DisplayName => "VK";
     public override string LinksDomainName => "vk.com";
+    public override string LogoEmojiId => "<:logo_vk:1189750001262403604>";
     public override string LogoUri => "http://larc.tech/content/dungeon-bot/logo-vk.png";
 
     private readonly IVkApi _vkApi;

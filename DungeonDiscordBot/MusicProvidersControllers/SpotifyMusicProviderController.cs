@@ -21,7 +21,9 @@ namespace DungeonDiscordBot.MusicProvidersControllers;
 
 public class SpotifyMusicProviderController : BaseMusicProviderController
 {
-    public override string LinksDomainName => "spotify.com";
+    public override string DisplayName => "Spotify";
+    public override string LinksDomainName => "open.spotify.com";
+    public override string LogoEmojiId => "<:logo_spotify:1189750897711001631>";
     public override string LogoUri => "http://larc.tech/content/dungeon-bot/logo-spotify.png";
 
     private readonly SpotifyClient _spotifyApi;
@@ -70,44 +72,50 @@ public class SpotifyMusicProviderController : BaseMusicProviderController
         
         string collectionName;
         List<FullTrack> tracks = new List<FullTrack>();
-        if (songMatch.Success) {
-            string trackId = songMatch.Groups[1].Value;
+        try {
+            if (songMatch.Success) {
+                string trackId = songMatch.Groups[1].Value;
 
-            FullTrack track = await _spotifyApi.Tracks.Get(trackId);
-            collectionName = $"{GetTrackArtists(track)} - {track.Name}";
-            tracks.Add(track);
-        } else if (albumMatch.Success) {
-            string albumId = albumMatch.Groups[1].Value;
-            
-            FullAlbum album = await _spotifyApi.Albums.Get(albumId);
-            TracksResponse albumTracks = await _spotifyApi.Tracks.GetSeveral(
-                new TracksRequest(album.Tracks.Items!.Select(t => t.Id).ToList()));
-            
-            string artists = string.Join(", ", album.Artists.Select(a => a.Name));
-            collectionName = $"{artists} - {album.Name}";
-            tracks.AddRange(albumTracks.Tracks);
-        } else if (playlistMatch.Success) {
-            string playlistId = playlistMatch.Groups[1].Value;
+                FullTrack track = await _spotifyApi.Tracks.Get(trackId);
+                collectionName = $"{GetTrackArtists(track)} - {track.Name}";
+                tracks.Add(track);
+            } else if (albumMatch.Success) {
+                string albumId = albumMatch.Groups[1].Value;
 
-            FullPlaylist playlist = await _spotifyApi.Playlists.Get(playlistId);
-            foreach (PlaylistTrack<IPlayableItem> playlistTrack in playlist.Tracks!.Items!) {
-                if (playlistTrack.Track is FullTrack track) {
-                    tracks.Add(track);
+                FullAlbum album = await _spotifyApi.Albums.Get(albumId);
+                TracksResponse albumTracks = await _spotifyApi.Tracks.GetSeveral(
+                    new TracksRequest(album.Tracks.Items!.Select(t => t.Id).ToList()));
+
+                string artists = string.Join(", ", album.Artists.Select(a => a.Name));
+                collectionName = $"{artists} - {album.Name}";
+                tracks.AddRange(albumTracks.Tracks);
+            } else if (playlistMatch.Success) {
+                string playlistId = playlistMatch.Groups[1].Value;
+
+                FullPlaylist playlist = await _spotifyApi.Playlists.Get(playlistId);
+                foreach (PlaylistTrack<IPlayableItem> playlistTrack in playlist.Tracks!.Items!) {
+                    if (playlistTrack.Track is FullTrack track) {
+                        tracks.Add(track);
+                    }
                 }
-            }
 
-            collectionName = $"{playlist.Owner!.DisplayName} - {playlist.Name}";
-        } else if (artistMatch.Success) {
-            string artistId = artistMatch.Groups[1].Value;
-            
-            FullArtist artist = await _spotifyApi.Artists.Get(artistId);
-            ArtistsTopTracksResponse topTracksResponse = await _spotifyApi.Artists.GetTopTracks(artistId, new ArtistsTopTracksRequest("DE"));
-            
-            collectionName = $"{artist.Name} - Popular";
-            tracks.AddRange(topTracksResponse.Tracks);
-        } else {
-            return MusicCollectionResponse.FromError(MusicProvider.Spotify, MusicResponseErrorType.LinkNotSupported, 
-                $"Current provider can't handle urls like {url}");
+                collectionName = $"{playlist.Owner!.DisplayName} - {playlist.Name}";
+            } else if (artistMatch.Success) {
+                string artistId = artistMatch.Groups[1].Value;
+
+                FullArtist artist = await _spotifyApi.Artists.Get(artistId);
+                ArtistsTopTracksResponse topTracksResponse =
+                    await _spotifyApi.Artists.GetTopTracks(artistId, new ArtistsTopTracksRequest("DE"));
+
+                collectionName = $"{artist.Name} - Popular";
+                tracks.AddRange(topTracksResponse.Tracks);
+            } else {
+                return MusicCollectionResponse.FromError(MusicProvider.Spotify, MusicResponseErrorType.LinkNotSupported,
+                    $"Current provider can't handle urls like {url}");
+            }
+        } catch (APIException e) {
+            return MusicCollectionResponse.FromError(MusicProvider.Spotify, MusicResponseErrorType.NoAudioFound, 
+                $"Spotify API exception: {e.Message}");
         }
 
         if (tracks.Count == 0) {

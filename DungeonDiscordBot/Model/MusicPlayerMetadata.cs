@@ -4,11 +4,11 @@ namespace DungeonDiscordBot.Model;
 
 public class MusicPlayerMetadata
 {
+    public TaskCompletionSource? PlayerStoppedCompletionSource { get; set; }
+    
     public int PageNumber { get; set; } = 1;
 
     public bool StopRequested { get; set; } = false;
-
-    public bool PlayPreviousRequested { get; set; } = false;
     
     public TimeSpan Elapsed { get; set; } = TimeSpan.Zero;
     

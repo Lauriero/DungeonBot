@@ -16,8 +16,9 @@ public abstract class BaseMusicProviderController :
     public event Action<int, int>? AudiosProcessingProgressed;
     public event Action<int>? AudiosProcessed;
     
+    public abstract string DisplayName { get; }
     public abstract string LinksDomainName { get; }
-    
+    public abstract string LogoEmojiId { get; }
     public abstract string LogoUri { get; }
 
     public int InitializationPriority => 0;
