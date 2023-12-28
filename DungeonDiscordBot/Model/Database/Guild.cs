@@ -21,5 +21,11 @@ public class Guild
     [Column("music_message_id")]
     public ulong? MusicMessageId { get; set; }
     
+    [Column("welcome_channel_id")]
+    public ulong? WelcomeChannelId { get; set; }
+    
+    [Column("runaway_channel_id")]
+    public ulong? RunawayChannelId { get; set; }
+    
     public ICollection<MusicQueryHistoryEntity> History { get; set; } = null!;
 }

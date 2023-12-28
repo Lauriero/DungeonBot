@@ -69,6 +69,40 @@ public class ConfigModule : InteractionModuleBase<SocketInteractionContext>
                 m.Content = $"Registered channel <#{channel.Id}> as music control channel");
         });
     }
+
+    [SlashCommand(name: "register-welcome-channel",
+        description: "Registers a channel that will be used to notify about new users",
+        runMode: RunMode.Async)]
+    [RequireRole(UserRoles.DUNGEON_MASTER_USER_ROLE)]
+    [RequireBotPermission(ChannelPermission.SendMessages | ChannelPermission.UseExternalEmojis)]
+    public async Task RegisterWelcomeChannelAsync(
+        [Summary("channel", "The welcome channel")]
+        SocketTextChannel channel)
+    {
+        await MethodWrapper(async () => {
+            await DeferAsync();
+            await _dataStorageService.RegisterWelcomeChannel(Context.Guild.Id, channel.Id);
+            await ModifyOriginalResponseAsync(m => 
+                m.Content = $"Registered channel <#{channel.Id}> as a welcome channel");
+        });
+    }
+    
+    [SlashCommand(name: "register-runaway-channel",
+        description: "Registers a channel that will be used to notify about left users",
+        runMode: RunMode.Async)]
+    [RequireRole(UserRoles.DUNGEON_MASTER_USER_ROLE)]
+    [RequireBotPermission(ChannelPermission.SendMessages | ChannelPermission.UseExternalEmojis)]
+    public async Task RegisterRunawayChannelAsync(
+        [Summary("channel", "The runaway channel")]
+        SocketTextChannel channel)
+    {
+        await MethodWrapper(async () => {
+            await DeferAsync();
+            await _dataStorageService.RegisterRunawayChannel(Context.Guild.Id, channel.Id);
+            await ModifyOriginalResponseAsync(m => 
+                m.Content = $"Registered channel <#{channel.Id}> as a runaway channel");
+        });
+    }
     
     private async Task MethodWrapper(Func<Task> inner)
     {

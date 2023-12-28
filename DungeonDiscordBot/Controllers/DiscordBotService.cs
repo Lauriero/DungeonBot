@@ -32,11 +32,12 @@ namespace DungeonDiscordBot.Controllers
         private readonly IDataStorageService _dataStorageService;
         private readonly IServiceProvider _serviceProvider;
         private readonly IDiscordAudioService _audioService;
+        private readonly IUserInterfaceService _UIService;
         private readonly ConcurrentDictionary<string, IButtonHandler> _buttonHandlers;
         
         public DiscordBotService(IServiceProvider serviceProvider, ILogger<IDiscordBotService> logger, 
             DiscordSocketClient client, InteractionService interactions, IOptions<AppSettings> settings, 
-            IDataStorageService dataStorageService, IDiscordAudioService audioService)
+            IDataStorageService dataStorageService, IDiscordAudioService audioService, IUserInterfaceService uiService)
         {
             _logger = logger;
             _client = client;
@@ -44,6 +45,7 @@ namespace DungeonDiscordBot.Controllers
             _interactions = interactions;
             _dataStorageService = dataStorageService;
             _audioService = audioService;
+            _UIService = uiService;
 
             _serviceProvider = serviceProvider;
             _buttonHandlers = new ConcurrentDictionary<string, IButtonHandler>(
@@ -64,6 +66,50 @@ namespace DungeonDiscordBot.Controllers
             _client.LeftGuild += async guild => {
                 await _dataStorageService.UnregisterGuild(guild.Id);
                 _logger.LogInformation($"Bot has left a guild {guild.Name} with id - {guild.Id}");
+            };
+
+            _client.UserJoined += async user => {
+                _logger.LogInformation($"User {user.Username}@{user.Id} has joined the guild {user.Guild.Name}@{user.Guild.Id}");
+                Guild guild = await _dataStorageService.GetGuildDataAsync(user.Guild.Id);
+                if (guild.WelcomeChannelId is not null) {
+                    IChannel channel = await _client.GetChannelAsync(guild.WelcomeChannelId.Value);
+                    if (channel is not SocketTextChannel textChannel) {
+                        _logger.LogError("Attempt to send a new user message has failed " +
+                                         "because registered channel was not a text channel");
+                        return;
+                    }
+
+                    MessageProperties properties = _UIService.GenerateNewUserMessage(user.Guild.CurrentUser, user);
+                    await textChannel.SendMessageAsync(
+                        text: properties.Content.GetValueOrDefault(),
+                        embed: properties.Embed.GetValueOrDefault(),
+                        components: properties.Components.GetValueOrDefault(),
+                        options: new RequestOptions {
+                            RetryMode = RetryMode.Retry502 | RetryMode.RetryTimeouts
+                        });
+                }
+            };
+
+            _client.UserLeft += async (guild, user) => {
+                _logger.LogInformation($"User {user.Username}@{user.Id} has left the guild {guild.Name}@{guild.Id}");
+                Guild guildData = await _dataStorageService.GetGuildDataAsync(guild.Id);
+                if (guildData.RunawayChannelId is not null) {
+                    IChannel channel = await _client.GetChannelAsync(guildData.RunawayChannelId.Value);
+                    if (channel is not SocketTextChannel textChannel) {
+                        _logger.LogError("Attempt to send a left user message has failed " +
+                                         "because registered channel was not a text channel");
+                        return;
+                    }
+
+                    MessageProperties properties = _UIService.GenerateLeftUserMessage(guild.CurrentUser, user);
+                    await textChannel.SendMessageAsync(
+                        text: properties.Content.GetValueOrDefault(),
+                        embed: properties.Embed.GetValueOrDefault(),
+                        components: properties.Components.GetValueOrDefault(),
+                        options: new RequestOptions {
+                            RetryMode = RetryMode.Retry502 | RetryMode.RetryTimeouts
+                        });
+                }
             };
 
             _client.InteractionCreated += async interaction => {

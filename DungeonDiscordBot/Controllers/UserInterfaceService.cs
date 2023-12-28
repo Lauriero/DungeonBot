@@ -406,6 +406,34 @@ public class UserInterfaceService : IUserInterfaceService
 
         return properties;
     }
+    
+    public MessageProperties GenerateNewUserMessage(IUser botUser, IUser joinedUser)
+    {
+        MessageProperties properties = new MessageProperties();
+        properties.Embed = new EmbedBuilder()
+            .WithColor(EmbedColors.Info)
+            .WithImageUrl("https://cdn-longterm.mee6.xyz/plugins/welcome/images/1021747104605016167/c37a38c3a314295a9ae91a51bab03aac4b1d22a54ffe15ba8512b0f891eb359f.gif")
+            .WithTitle("Welcome to the GYM")
+            .WithAuthor(botUser)
+            .WithCurrentTimestamp()
+            .WithDescription($"New fucking slave <@{joinedUser.Id}> joined the gym!")
+            .Build();
+
+        return properties;
+    }
+    
+    public MessageProperties GenerateLeftUserMessage(IUser botUser, IUser leftUser)
+    {
+        MessageProperties properties = new MessageProperties();
+        properties.Embed = new EmbedBuilder()
+            .WithColor(EmbedColors.Info)
+            .WithAuthor(botUser)
+            .WithCurrentTimestamp()
+            .WithTitle($"{leftUser.Username} позорно сбежал из данжа")
+            .Build();
+
+        return properties;
+    }
 
     private static class EmbedColors
     {

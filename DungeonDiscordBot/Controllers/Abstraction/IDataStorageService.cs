@@ -31,6 +31,18 @@ public interface IDataStorageService
         CancellationToken token = default);
 
     /// <summary>
+    /// Registers a discord channel with the specified id
+    /// as a channel the messages about new users will be send to.
+    /// </summary>
+    Task RegisterWelcomeChannel(ulong guildId, ulong channelId, CancellationToken token = default);
+    
+    /// <summary>
+    /// Registers a discord channel with the specified id
+    /// as a channel the messages about left users will be send to.
+    /// </summary>
+    Task RegisterRunawayChannel(ulong guildId, ulong channelId, CancellationToken token = default);
+
+    /// <summary>
     /// Adds a text channel as a music control channel for a specified guild.
     /// Called from a bot service to put the implementation of the channel
     /// to the dictionary of channels for other services to use. 

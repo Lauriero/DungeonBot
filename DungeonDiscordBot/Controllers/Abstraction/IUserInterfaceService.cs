@@ -39,4 +39,8 @@ public interface IUserInterfaceService
     MessageProperties GenerateMusicServiceNotFoundMessage(IUser botUser, string userQuery);
 
     MessageProperties GenerateMusicServiceLinkNotSupportedMessage(BaseMusicProviderController providerControllerUsed, string userQuery);
+    
+    MessageProperties GenerateNewUserMessage(IUser botUser, IUser joinedUser);
+    MessageProperties GenerateLeftUserMessage(IUser botUser, IUser leftUser);
+
 }

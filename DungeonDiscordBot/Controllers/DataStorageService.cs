@@ -67,6 +67,22 @@ public class DataStorageService : IDataStorageService
     }
 
     /// <inheritdoc />
+    public async Task RegisterWelcomeChannel(ulong guildId, ulong channelId, CancellationToken token = default)
+    {
+        Guild target = await GetGuildDataAsync(guildId, token);
+        target.WelcomeChannelId = channelId;
+        await _dataContext.SaveChangesAsync(token);
+    }
+    
+    /// <inheritdoc />
+    public async Task RegisterRunawayChannel(ulong guildId, ulong channelId, CancellationToken token = default)
+    {
+        Guild target = await GetGuildDataAsync(guildId, token);
+        target.RunawayChannelId = channelId;
+        await _dataContext.SaveChangesAsync(token);
+    }
+
+    /// <inheritdoc />
     public async Task<Guild> GetGuildDataAsync(ulong guildId, CancellationToken token = default)
     {
         Guild? target = await _dataContext.Guilds.FindAsync(new object?[] { guildId }, token);

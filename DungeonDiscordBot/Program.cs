@@ -1,6 +1,7 @@
 ﻿using System.Net;
 using System.Runtime.Versioning;
 
+using Discord;
 using Discord.Interactions;
 using Discord.WebSocket;
 
@@ -68,7 +69,9 @@ namespace DungeonDiscordBot
 
                         .AddDbContext<BotDataContext>()
                         .AddSingleton<InteractionService>()
-                        .AddSingleton<DiscordSocketClient>()
+                        .AddSingleton<DiscordSocketClient>(sp => new DiscordSocketClient(new DiscordSocketConfig {
+                            GatewayIntents = GatewayIntents.All
+                        }))
 
                         .AddSingleton<IUserInterfaceService, UserInterfaceService>()
                         .AddSingleton<IDataStorageService, DataStorageService>()

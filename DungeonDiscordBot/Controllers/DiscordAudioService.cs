@@ -284,6 +284,7 @@ public class DiscordAudioService : IDiscordAudioService
         }
         
         IAudioClient client = await channel.ConnectAsync(selfDeaf: true);
+        
         if (!_connectedChannels.TryAdd(channel.Id, client)) {
             _logger.Log(LogLevel.Error, "Error adding connected channel audios client to a collection");
         }
