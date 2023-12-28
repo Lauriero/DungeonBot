@@ -397,7 +397,9 @@ public class DiscordAudioService : IDiscordAudioService
         Process? process = Process.Start(new ProcessStartInfo
         {
             FileName = _settings.FFMpegExecutable,
-            Arguments = $"-hide_banner -re -i \"{path}\" -ac 2 -f s16le " +
+            Arguments = $"-hide_banner -err_detect ignore_err -ec guess_mvs+deblock+favor_inter -ignore_unknown " +
+                        $"-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5 " +
+                        $"-re -i \"{path}\" -ac 2 -f s16le " +
                         $"-ss {startTime:hh\\:mm\\:ss} -ar 48000 pipe:1",
             UseShellExecute = false,
             RedirectStandardOutput = true
