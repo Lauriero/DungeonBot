@@ -296,9 +296,9 @@ public class DiscordAudioService : IDiscordAudioService
         ulong guildId, string reason, CancellationToken token = default)
     {
         MusicPlayerMetadata metadata = GetMusicPlayerMetadata(guildId);
-        metadata.State = MusicPlayerState.Playing;
-
+        
         while (!queue.IsEmpty) {
+            metadata.State = MusicPlayerState.Playing;
             await UpdateSongsQueueAsync(guildId, token: token, message: reason);
             
             if (!queue.TryPeek(out AudioQueueRecord? record)) {
@@ -357,7 +357,9 @@ public class DiscordAudioService : IDiscordAudioService
                 return;
             }
 
+            metadata.State = MusicPlayerState.Paused;
             metadata.Elapsed = TimeSpan.Zero;
+            
             if (metadata.RepeatMode != RepeatMode.RepeatSong) {
                 metadata.PreviousTracks.Push(record);
                 if (!queue.TryDequeue(out AudioQueueRecord? _)) {

@@ -31,6 +31,8 @@ public interface IUserInterfaceService
     Task UpdateSongsQueueMessageAsync(ulong guildId, ConcurrentQueue<AudioQueueRecord> queue, 
         MusicPlayerMetadata playerMetadata, string message = "", CancellationToken token = default);
 
+    MessageProperties GenerateTrackHistoryMessage(ConcurrentStack<AudioQueueRecord> previousTracks);
+    
     MessageProperties GenerateMissingPermissionsMessage(
         string description,
         ChannelPermission[] requiredPermissions,

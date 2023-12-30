@@ -4,11 +4,13 @@ using System.Text;
 using CaseConverter;
 
 using Discord;
+using Discord.Interactions;
 using Discord.Rest;
 using Discord.WebSocket;
 
 using DungeonDiscordBot.ButtonHandlers;
 using DungeonDiscordBot.Controllers.Abstraction;
+using DungeonDiscordBot.InteractionModules.Components;
 using DungeonDiscordBot.Model;
 using DungeonDiscordBot.Model.Database;
 using DungeonDiscordBot.Model.MusicProviders;
@@ -66,6 +68,54 @@ public class UserInterfaceService : IUserInterfaceService
             }); 
         } catch (OperationCanceledException) {
         } catch (TimeoutException) { }
+    }
+    
+    public MessageProperties GenerateTrackHistoryMessage(ConcurrentStack<AudioQueueRecord> previousTracks)
+    {
+        StringBuilder descriptionBuilder = new StringBuilder();
+        IEnumerable<AudioQueueRecord> lastTracks = previousTracks.Take(10);
+        for (int i = 0; i < 10 && i < lastTracks.Count(); i++) {
+            AudioQueueRecord record = lastTracks.ElementAt(i);
+            
+            string title;
+            if (record.PublicUrl is not null) {
+                title = $"[{record.Author} - {record.Title}]({record.PublicUrl})";
+            } else {
+                title = $"{record.Author} - {record.Title}";
+            }
+
+            descriptionBuilder.AppendLine($"`[{i + 1}]`‎ ‎‏‏‎‎ {title}");
+        }
+        
+        EmbedBuilder embedBuilder = new EmbedBuilder()
+            .WithColor(EmbedColors.Info)
+            .WithCurrentTimestamp()
+            .WithThumbnailUrl("http://larc.tech/content/dungeon-bot/history-book-c1-64.png")
+            .WithTitle("Recent tracks played: ")
+            .WithDescription(descriptionBuilder.ToString());
+
+        ComponentBuilder componentBuilder = new ComponentBuilder()
+            .WithRows(new[] {
+                new ActionRowBuilder()
+                    .WithSelectMenu(new SelectMenuBuilder()
+                        .WithPlaceholder("Select a track operate with")
+                        .WithCustomId(PlaybackHistoryModule.TRACK_SELECT_ID)
+                        .WithOptions(lastTracks.Select(t => 
+                            new SelectMenuOptionBuilder()
+                                .WithLabel($"{t.Author} - {t.Title}")
+                                .WithValue(t.PublicUrl)
+                            )
+                            .ToList())),
+                new ActionRowBuilder()
+                    .WithButton("↻", customId: PlaybackHistoryModule.HISTORY_REFRESH_ID, style: ButtonStyle.Secondary)
+                    .WithButton("Queue up", customId: PlaybackHistoryModule.PLAY_SELECTED_TRACK_ID, style: ButtonStyle.Primary)
+                    .WithButton("Play now", customId: PlaybackHistoryModule.PLAY_SELECTED_TRACK_NOW_ID, style: ButtonStyle.Primary)
+            });
+
+        return new MessageProperties {
+            Embed = embedBuilder.Build(),
+            Components = componentBuilder.Build()
+        };
     }
 
     private async Task<MessageProperties> GenerateMusicMessageAsync(string guildName, 

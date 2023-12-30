@@ -95,7 +95,8 @@ public class MusicModule : InteractionModuleBase<SocketInteractionContext>
     
 
     [SlashCommand(name: "search",
-        description: "Searches music in the specified music service")]
+        description: "Searches music in the specified music service",
+        runMode: RunMode.Async)]
     public async Task SearchAsync(
         [Summary(SearchAutocompleteHandler.SERVICE_PARAMETER_NAME, "Music service to search in")]
         MusicProvider provider,
@@ -143,7 +144,7 @@ public class MusicModule : InteractionModuleBase<SocketInteractionContext>
         });
     }
 
-    [SlashCommand("gachify", "Does some gachi magic")]
+    [SlashCommand("gachify", "Does some gachi magic", runMode: RunMode.Async)]
     public async Task GachifyAsync()
     {
         await MethodWrapper(async () => {
@@ -193,6 +194,27 @@ public class MusicModule : InteractionModuleBase<SocketInteractionContext>
             await _audioService.PlayQueueAsync(Context.Guild.Id, 
                 $"**{resultTracks.Count}** gachi tracks were added to the queue");
         });
+    }
+
+    [SlashCommand("history", 
+        "Shows the music playback history, allowing to queue one of the previous tracks",
+        runMode: RunMode.Async)]
+    public async Task HistoryAsync()
+    {
+        await MethodWrapper(async () => {
+            await DeferAsync(true);
+
+            MusicPlayerMetadata playerMetadata = _audioService.GetMusicPlayerMetadata(Context.Guild.Id);
+            
+            // TODO: Remove after debug
+            if (playerMetadata.PreviousTracks.IsEmpty) {
+                playerMetadata.PreviousTracks.PushRange((await MusicProvider.Spotify.Value.GetAudiosFromLinkAsync(
+                    new Uri("https://open.spotify.com/album/4D5jPyiKLGQS3bv6hRmPVP"), -1)).Audios.ToArray());
+            }
+
+            await ModifyOriginalResponseAsync(m => m.ApplyMessageProperties(
+                _UIService.GenerateTrackHistoryMessage(playerMetadata.PreviousTracks)));
+        }, false);
     }
 
     private async Task PlayByUrlAsync(Uri link, SocketVoiceChannel targetChannel, int quantity = -1, bool now = false)
@@ -256,12 +278,14 @@ public class MusicModule : InteractionModuleBase<SocketInteractionContext>
         await _audioService.PlayQueueAsync(Context.Guild.Id, $"**{collection.Audios.Count()}** tracks from {collection.Name} were added to the queue");
     }
 
-    private async Task MethodWrapper(Func<Task> inner)
+    private async Task MethodWrapper(Func<Task> inner, bool deleteAfter = true)
     {
         try {
             await inner();
-            await Task.Delay(15000);
-            await DeleteOriginalResponseAsync();
+            if (deleteAfter) {
+                await Task.Delay(15000);
+                await DeleteOriginalResponseAsync();
+            }
         } catch (Exception e) {
             await _botService.HandleInteractionException(e);
         }

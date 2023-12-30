@@ -6,6 +6,7 @@ using DungeonDiscordBot.Controllers.Abstraction;
 using DungeonDiscordBot.Model.Database;
 
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace DungeonDiscordBot.Controllers;
 
@@ -14,17 +15,20 @@ public class DataStorageService : IDataStorageService
     public int MaxMusicQueryEntityCount => 10;
     
     private readonly BotDataContext _dataContext;
+    private readonly ILogger<DataStorageService> _logger;
     private readonly ConcurrentDictionary<ulong, SocketTextChannel> _guildMusicChannels = new();
 
-    public DataStorageService(BotDataContext dataContext)
+    public DataStorageService(BotDataContext dataContext, ILogger<DataStorageService> logger)
     {
         _dataContext = dataContext;
+        _logger = logger;
     }
 
-    public void AddMusicControlChannel(ulong guildId, SocketTextChannel channel) {
-        if (!_guildMusicChannels.TryAdd(guildId, channel)) {
-            throw new Exception($"Attempt to register music channel with guild [{guildId}] that already exists");
-        }
+    public void AddMusicControlChannel(ulong guildId, SocketTextChannel channel)
+    {
+        _guildMusicChannels.TryAdd(guildId, channel);
+        _logger.LogInformation("Registered a channel {name}@{id} as a music channel for the guild {gId}", 
+            channel.Name, channel.Id, guildId);
     }
 
     public SocketTextChannel GetMusicControlChannel(ulong guildId)
