@@ -1,5 +1,9 @@
 ﻿using Discord;
+using Discord.Interactions;
+using Discord.Rest;
 using Discord.WebSocket;
+
+using VkNet.AudioApi.Model;
 
 namespace DungeonDiscordBot.Utilities;
 
@@ -20,6 +24,32 @@ public static class DiscordExtensions
         }
 
         return true;
+    }
+
+    public static Task<RestUserMessage> SendMessageAsync(this ISocketMessageChannel channel, MessageProperties properties, 
+        RequestOptions? options = null)
+    {
+        return channel.SendMessageAsync(
+            text: properties.Content.GetValueOrDefault(),
+            embed: properties.Embed.GetValueOrDefault(),
+            allowedMentions: properties.AllowedMentions.GetValueOrDefault(),
+            components: properties.Components.GetValueOrDefault(),
+            embeds: properties.Embeds.GetValueOrDefault(),
+            flags: properties.Flags.GetValueOrDefault() ?? MessageFlags.None,
+            options: options);
+    }
+
+    public static SocketVoiceChannel? GetVoiceChannelWithCurrentUser(this SocketInteractionContext context)
+    {
+        foreach (SocketVoiceChannel? channel in context.Guild.VoiceChannels) {
+            foreach (SocketGuildUser user in channel.ConnectedUsers) {
+                if (user.Id == context.User.Id) {
+                    return channel;
+                }
+            }
+        }
+
+        return null;
     }
 
     /// <summary>

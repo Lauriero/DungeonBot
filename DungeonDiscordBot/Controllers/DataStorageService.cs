@@ -13,7 +13,9 @@ namespace DungeonDiscordBot.Controllers;
 public class DataStorageService : IDataStorageService
 {
     public int MaxMusicQueryEntityCount => 10;
-    
+
+    public ConcurrentDictionary<ulong, string> HistoryMessageSelectedOptions { get; } = new();
+
     private readonly BotDataContext _dataContext;
     private readonly ILogger<DataStorageService> _logger;
     private readonly ConcurrentDictionary<ulong, SocketTextChannel> _guildMusicChannels = new();

@@ -1,10 +1,19 @@
 ﻿using System.Collections.Concurrent;
 
+using Discord.Audio;
+using Discord.WebSocket;
+
 namespace DungeonDiscordBot.Model;
 
 public class MusicPlayerMetadata
 {
     public TaskCompletionSource? PlayerStoppedCompletionSource { get; set; }
+    
+    public CancellationTokenSource? PlayerCancellationTokenSource { get; set; }
+    
+    public IAudioClient? AudioClient { get; set; }
+
+    public SocketVoiceChannel? VoiceChannel { get; set; }
     
     public int PageNumber { get; set; } = 1;
 
@@ -17,7 +26,9 @@ public class MusicPlayerMetadata
     public RepeatMode RepeatMode { get; set; } = RepeatMode.NoRepeat;
 
     public ConcurrentStack<AudioQueueRecord> PreviousTracks { get; } = new ConcurrentStack<AudioQueueRecord>();
-    
+
+    public ConcurrentQueue<AudioQueueRecord> Queue { get; } = new ConcurrentQueue<AudioQueueRecord>();
+
     public Timer? ElapsedTimer { get; set; }
 }
 

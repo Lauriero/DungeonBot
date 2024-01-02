@@ -22,7 +22,7 @@ using VkNet.Model;
 
 namespace DungeonDiscordBot.InteractionModules;
 
-public class MusicModule : InteractionModuleBase<SocketInteractionContext>
+public class MusicModule : BaseInteractionModule<SocketInteractionContext>
 {
     private readonly ConcurrentDictionary<ulong, IAudioClient> _connectedChannels = new();
     
@@ -31,12 +31,10 @@ public class MusicModule : InteractionModuleBase<SocketInteractionContext>
     private readonly IDataStorageService _dataStorageService;
     private readonly IDiscordAudioService _audioService;
     private readonly IUserInterfaceService _UIService;
-    
-    private readonly ChannelPermission[] _voiceChannelPermissions = {
-        ChannelPermission.Speak,
-    };
-    
-    public MusicModule(ILogger<MusicModule> logger, IDiscordAudioService audioService, IDiscordBotService botService, IDataStorageService dataStorageService, IUserInterfaceService uiService)
+
+    public MusicModule(ILogger<MusicModule> logger, IDiscordAudioService audioService, 
+        IDiscordBotService botService, IDataStorageService dataStorageService, IUserInterfaceService uiService)
+        : base(logger)
     {
         _logger = logger;
         _botService = botService;
@@ -72,10 +70,10 @@ public class MusicModule : InteractionModuleBase<SocketInteractionContext>
                 return;
             }
 
-            if (!targetChannel.CheckChannelPermissions(_voiceChannelPermissions)) {
+            if (!targetChannel.CheckChannelPermissions(ChannelPermissionsCatalogue.ForVoiceChannel)) {
                 MessageProperties missingPermissionsMessage = _UIService.GenerateMissingPermissionsMessage(
                     $"Bot should have following permissions in the channel <#{targetChannel.Id}> in order to play music",
-                    _voiceChannelPermissions,
+                    ChannelPermissionsCatalogue.ForVoiceChannel,
                     targetChannel);
                 await ModifyOriginalResponseAsync(m => m.ApplyMessageProperties(missingPermissionsMessage));
                 return;
@@ -122,10 +120,10 @@ public class MusicModule : InteractionModuleBase<SocketInteractionContext>
                 return;
             }
 
-            if (!targetChannel.CheckChannelPermissions(_voiceChannelPermissions)) {
+            if (!targetChannel.CheckChannelPermissions(ChannelPermissionsCatalogue.ForVoiceChannel)) {
                 MessageProperties missingPermissionsMessage = _UIService.GenerateMissingPermissionsMessage(
                     $"Bot should have following permissions in the channel <#{targetChannel.Id}> in order to play music",
-                    _voiceChannelPermissions,
+                    ChannelPermissionsCatalogue.ForVoiceChannel,
                     targetChannel);
                 await ModifyOriginalResponseAsync(m => m.ApplyMessageProperties(missingPermissionsMessage));
                 return;
@@ -153,7 +151,8 @@ public class MusicModule : InteractionModuleBase<SocketInteractionContext>
             await EnsureInMusicChannel();
 
             List<string> trackNames = new List<string>();
-            foreach (AudioQueueRecord track in _audioService.GetQueue(Context.Guild.Id)) {
+            MusicPlayerMetadata metadata = _audioService.GetMusicPlayerMetadata(Context.Guild.Id);
+            foreach (AudioQueueRecord track in metadata.Queue) {
                 trackNames.Add(new string(track.Title));
             }
             
@@ -190,7 +189,7 @@ public class MusicModule : InteractionModuleBase<SocketInteractionContext>
                 m.Content = $"**Your queue has been gachified." +
                             $"Transformed {resultTracks.Count} tracks out of {trackNames.Count} tracks**");
             
-            _audioService.AddAudios(Context.Guild.Id, resultTracks, false);
+            await _audioService.AddAudios(Context.Guild.Id, resultTracks, false);
             await _audioService.PlayQueueAsync(Context.Guild.Id, 
                 $"**{resultTracks.Count}** gachi tracks were added to the queue");
         });
@@ -203,15 +202,9 @@ public class MusicModule : InteractionModuleBase<SocketInteractionContext>
     {
         await MethodWrapper(async () => {
             await DeferAsync(true);
+            await EnsureInMusicChannel();
 
             MusicPlayerMetadata playerMetadata = _audioService.GetMusicPlayerMetadata(Context.Guild.Id);
-            
-            // TODO: Remove after debug
-            if (playerMetadata.PreviousTracks.IsEmpty) {
-                playerMetadata.PreviousTracks.PushRange((await MusicProvider.Spotify.Value.GetAudiosFromLinkAsync(
-                    new Uri("https://open.spotify.com/album/4D5jPyiKLGQS3bv6hRmPVP"), -1)).Audios.ToArray());
-            }
-
             await ModifyOriginalResponseAsync(m => m.ApplyMessageProperties(
                 _UIService.GenerateTrackHistoryMessage(playerMetadata.PreviousTracks)));
         }, false);
@@ -225,24 +218,6 @@ public class MusicModule : InteractionModuleBase<SocketInteractionContext>
                 _UIService.GenerateMusicServiceNotFoundMessage(Context.Guild.CurrentUser, link.AbsoluteUri)));
             return;
         }
-
-        controller.AudiosProcessingStarted += audiosCount => {
-            Task.Run(async () =>
-                await ModifyOriginalResponseAsync(m => 
-                    m.Content = $"Processing 0/{audiosCount}"));
-        };
-
-        controller.AudiosProcessingProgressed += (audiosProcessed, audiosCount) => {
-            Task.Run(async () =>
-                await ModifyOriginalResponseAsync(m => 
-                    m.Content = $"Processing {audiosProcessed}/{audiosCount}"));
-        };
-
-        controller.AudiosProcessed += audiosProcessed => {
-            Task.Run(async () =>
-                await ModifyOriginalResponseAsync(m => 
-                    m.Content = $"{audiosProcessed} audios were processed"));
-        };
         
         MusicCollectionResponse collection = await controller.GetAudiosFromLinkAsync(link, quantity);
         if (collection.IsError) {
@@ -272,23 +247,10 @@ public class MusicModule : InteractionModuleBase<SocketInteractionContext>
         await ModifyOriginalResponseAsync(m => m.Content = 
             $"Found {collection.Audios.Count()} audios");
 
+        _audioService.GetMusicPlayerMetadata(Context.Guild.Id).VoiceChannel = targetChannel;
         await _dataStorageService.RegisterMusicQueryAsync(Context.Guild.Id, collection.Name, link.AbsoluteUri);
-        _audioService.RegisterChannel(Context.Guild, targetChannel.Id);
-        _audioService.AddAudios(Context.Guild.Id, collection.Audios, now);
+        await _audioService.AddAudios(Context.Guild.Id, collection.Audios, now);
         await _audioService.PlayQueueAsync(Context.Guild.Id, $"**{collection.Audios.Count()}** tracks from {collection.Name} were added to the queue");
-    }
-
-    private async Task MethodWrapper(Func<Task> inner, bool deleteAfter = true)
-    {
-        try {
-            await inner();
-            if (deleteAfter) {
-                await Task.Delay(15000);
-                await DeleteOriginalResponseAsync();
-            }
-        } catch (Exception e) {
-            await _botService.HandleInteractionException(e);
-        }
     }
 
     private async Task EnsureInMusicChannel()

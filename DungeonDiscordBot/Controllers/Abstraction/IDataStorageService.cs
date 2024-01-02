@@ -1,4 +1,6 @@
-﻿using Discord.WebSocket;
+﻿using System.Collections.Concurrent;
+
+using Discord.WebSocket;
 
 using DungeonDiscordBot.Model.Database;
 
@@ -10,6 +12,11 @@ public interface IDataStorageService
     /// Maximum number of music queries for the one guild that are saved at the database. 
     /// </summary>
     int MaxMusicQueryEntityCount { get; }
+    
+    /// <summary>
+    /// 
+    /// </summary>
+    ConcurrentDictionary<ulong, string> HistoryMessageSelectedOptions { get; }
     
     /// <summary>
     /// Registers new discord guild.

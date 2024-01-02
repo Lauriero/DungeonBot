@@ -22,16 +22,18 @@ public interface IUserInterfaceService
     /// and sends it to the music control channel,
     /// storing channel and message ids.
     /// </summary>
-    Task CreateSongsQueueMessageAsync(ulong guildId, ConcurrentQueue<AudioQueueRecord> queue,
-        MusicPlayerMetadata playerMetadata, SocketTextChannel musicControlChannel, CancellationToken token = default);
+    /// <returns>ID of the created message with a queue.</returns>
+    Task<ulong> CreateSongsQueueMessageAsync(ulong guildId, MusicPlayerMetadata playerMetadata, 
+        SocketTextChannel musicControlChannel, CancellationToken token = default);
  
     /// <summary>
     /// Updates the current message that is used to control music.
     /// </summary>
-    Task UpdateSongsQueueMessageAsync(ulong guildId, ConcurrentQueue<AudioQueueRecord> queue, 
-        MusicPlayerMetadata playerMetadata, string message = "", CancellationToken token = default);
+    Task UpdateSongsQueueMessageAsync(ulong guildId, MusicPlayerMetadata playerMetadata, 
+        string message = "", CancellationToken token = default);
 
-    MessageProperties GenerateTrackHistoryMessage(ConcurrentStack<AudioQueueRecord> previousTracks);
+    MessageProperties GenerateTrackHistoryMessage(ConcurrentStack<AudioQueueRecord> previousTracks, 
+        string? selectedTrackUri = null);
     
     MessageProperties GenerateMissingPermissionsMessage(
         string description,

@@ -21,7 +21,7 @@ public interface IDiscordAudioService
     /// <param name="guildId">Id of the server.</param>
     /// <param name="audios">Song data.</param>
     /// <param name="addToHead">Flat that indicates whether audios should be put in the head or the the tail of the queue</param>
-    void AddAudios(ulong guildId, IEnumerable<AudioQueueRecord> audios, bool addToHead);
+    Task AddAudios(ulong guildId, IEnumerable<AudioQueueRecord> audios, bool addToHead);
 
     /// <summary>
     /// Starts playing the queue.
@@ -54,19 +54,6 @@ public interface IDiscordAudioService
     /// </summary>
     /// <param name="guildId">Id of the server.</param>
     Task ClearQueue(ulong guildId);
-
-    /// <summary>
-    /// Registers a discord voice channel that will be used as a speaking channel on this server.
-    /// </summary>
-    /// <param name="guild">Server instance.</param>
-    /// <param name="channelId">Id of the channel.</param>
-    void RegisterChannel(SocketGuild guild, ulong channelId);
-
-    /// <summary>
-    /// Gets the current queue of the server. 
-    /// </summary>
-    /// <returns>Queue.</returns>
-    ConcurrentQueue<AudioQueueRecord> GetQueue(ulong guildId);
 
     /// <summary>
     /// Registers a metadata for the server.

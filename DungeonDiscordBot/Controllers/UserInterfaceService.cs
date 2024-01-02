@@ -32,13 +32,12 @@ public class UserInterfaceService : IUserInterfaceService
         _dataStorageService = dataStorageService;
     }
     
-    public async Task CreateSongsQueueMessageAsync(ulong guildId, 
-        ConcurrentQueue<AudioQueueRecord> queue, MusicPlayerMetadata playerMetadata,
+    public async Task<ulong> CreateSongsQueueMessageAsync(ulong guildId, MusicPlayerMetadata playerMetadata,
         SocketTextChannel musicControlChannel, CancellationToken token = default)
     {
         Guild guild = await _dataStorageService.GetGuildDataAsync(guildId, token);
         
-        MessageProperties musicMessage = await GenerateMusicMessageAsync(guild.Name, queue, playerMetadata);
+        MessageProperties musicMessage = await GenerateMusicMessageAsync(guild.Name, playerMetadata);
         RestUserMessage message = await musicControlChannel.SendMessageAsync("", 
             embed: musicMessage.Embed.Value, 
             components: musicMessage.Components.Value,
@@ -47,16 +46,15 @@ public class UserInterfaceService : IUserInterfaceService
                 RetryMode = RetryMode.Retry502 | RetryMode.RetryTimeouts
             });
 
-        await _dataStorageService.RegisterMusicChannel(guildId, musicControlChannel, message.Id, token);
+        return message.Id;
     }
     
-    public async Task UpdateSongsQueueMessageAsync(ulong guildId, 
-        ConcurrentQueue<AudioQueueRecord> queue, MusicPlayerMetadata playerMetadata, 
+    public async Task UpdateSongsQueueMessageAsync(ulong guildId, MusicPlayerMetadata playerMetadata, 
         string message = "", CancellationToken token = default)
     {
         Guild guild = await _dataStorageService.GetGuildDataAsync(guildId, token);
         SocketTextChannel musicControlChannel = _dataStorageService.GetMusicControlChannel(guildId);
-        MessageProperties musicMessage = await GenerateMusicMessageAsync(musicControlChannel.Guild.Name, queue, playerMetadata);
+        MessageProperties musicMessage = await GenerateMusicMessageAsync(musicControlChannel.Guild.Name, playerMetadata);
         try {
             await musicControlChannel.ModifyMessageAsync(guild.MusicMessageId!.Value, m => {
                 m.Content = string.IsNullOrEmpty(message) ? new Optional<string>() : message;
@@ -70,10 +68,11 @@ public class UserInterfaceService : IUserInterfaceService
         } catch (TimeoutException) { }
     }
     
-    public MessageProperties GenerateTrackHistoryMessage(ConcurrentStack<AudioQueueRecord> previousTracks)
+    public MessageProperties GenerateTrackHistoryMessage(ConcurrentStack<AudioQueueRecord> previousTracks, 
+        string? selectedTrackUri = null)
     {
         StringBuilder descriptionBuilder = new StringBuilder();
-        IEnumerable<AudioQueueRecord> lastTracks = previousTracks.Take(10);
+        IEnumerable<AudioQueueRecord> lastTracks = previousTracks.DistinctBy(t => t.PublicUrl).Take(10);
         for (int i = 0; i < 10 && i < lastTracks.Count(); i++) {
             AudioQueueRecord record = lastTracks.ElementAt(i);
             
@@ -94,32 +93,55 @@ public class UserInterfaceService : IUserInterfaceService
             .WithTitle("Recent tracks played: ")
             .WithDescription(descriptionBuilder.ToString());
 
-        ComponentBuilder componentBuilder = new ComponentBuilder()
-            .WithRows(new[] {
-                new ActionRowBuilder()
-                    .WithSelectMenu(new SelectMenuBuilder()
-                        .WithPlaceholder("Select a track operate with")
-                        .WithCustomId(PlaybackHistoryModule.TRACK_SELECT_ID)
-                        .WithOptions(lastTracks.Select(t => 
-                            new SelectMenuOptionBuilder()
+        string? selectedTrackName = null;
+        List<ActionRowBuilder> rows = new List<ActionRowBuilder>();
+        if (!previousTracks.IsEmpty) {
+            rows.Add(new ActionRowBuilder()
+                .WithSelectMenu(new SelectMenuBuilder()
+                    .WithPlaceholder("Select a track operate with")
+                    .WithCustomId(PlaybackHistoryModule.TRACK_SELECT_ID)
+                    .WithOptions(lastTracks.Select(t => {
+                            bool selected = false;
+                            if (selectedTrackUri == t.PublicUrl) {
+                                selectedTrackName = $"{t.Author} - {t.Title}";
+                                selected = true;
+                            }
+                            
+                            return new SelectMenuOptionBuilder()
                                 .WithLabel($"{t.Author} - {t.Title}")
                                 .WithValue(t.PublicUrl)
-                            )
-                            .ToList())),
-                new ActionRowBuilder()
-                    .WithButton("↻", customId: PlaybackHistoryModule.HISTORY_REFRESH_ID, style: ButtonStyle.Secondary)
-                    .WithButton("Queue up", customId: PlaybackHistoryModule.PLAY_SELECTED_TRACK_ID, style: ButtonStyle.Primary)
-                    .WithButton("Play now", customId: PlaybackHistoryModule.PLAY_SELECTED_TRACK_NOW_ID, style: ButtonStyle.Primary)
-            });
+                                .WithDefault(selected);
+                        })
+                        .ToList())));
+        }
+        
+        rows.Add(new ActionRowBuilder()
+            .WithButton("Refresh", customId: PlaybackHistoryModule.REFRESH_HISTORY_ID, style: ButtonStyle.Secondary)
+            .WithButton("Play", customId: PlaybackHistoryModule.PLAY_SELECTED_TRACK_ID, 
+                style: ButtonStyle.Primary, disabled: previousTracks.IsEmpty || selectedTrackName is null)
+            .WithButton("Play now", customId: PlaybackHistoryModule.PLAY_SELECTED_TRACK_NOW_ID, 
+                style: ButtonStyle.Primary, disabled: previousTracks.IsEmpty || selectedTrackName is null));
+        
+        ComponentBuilder componentBuilder = new ComponentBuilder()
+            .WithRows(rows);
 
+        string messageContent;
+        if (previousTracks.IsEmpty) {
+            messageContent = "No playback history was found";
+        } else {
+            messageContent = selectedTrackName is not null
+                ? $"Track [{selectedTrackName}]({selectedTrackUri}) was selected"
+                : "";
+        }
+        
         return new MessageProperties {
             Embed = embedBuilder.Build(),
-            Components = componentBuilder.Build()
+            Components = componentBuilder.Build(),
+            Content = messageContent,
         };
     }
 
-    private async Task<MessageProperties> GenerateMusicMessageAsync(string guildName, 
-        ConcurrentQueue<AudioQueueRecord> queue, MusicPlayerMetadata playerMetadata)
+    private async Task<MessageProperties> GenerateMusicMessageAsync(string guildName, MusicPlayerMetadata playerMetadata)
     {
         int pageNumber = playerMetadata.PageNumber;
         
@@ -149,11 +171,11 @@ public class UserInterfaceService : IUserInterfaceService
                 throw new ArgumentOutOfRangeException();
         }
 
-        queue.TryPeek(out AudioQueueRecord? firstRecord);
+        playerMetadata.Queue.TryPeek(out AudioQueueRecord? firstRecord);
         
-        string nextSongsList = queue.Count > 1 ? "📋 **Next songs:**\n" : "";
-        for (int i = 1 + (pageNumber - 1) * 10; i < 11 + (pageNumber - 1) * 10 && i < queue.Count; i++) {
-            AudioQueueRecord record = queue.ElementAt(i);
+        string nextSongsList = playerMetadata.Queue.Count > 1 ? "📋 **Next songs:**\n" : "";
+        for (int i = 1 + (pageNumber - 1) * 10; i < 11 + (pageNumber - 1) * 10 && i < playerMetadata.Queue.Count; i++) {
+            AudioQueueRecord record = playerMetadata.Queue.ElementAt(i);
             
             string title;
             if (record.PublicUrl is not null) {
@@ -171,7 +193,7 @@ public class UserInterfaceService : IUserInterfaceService
 
         string description;
         EmbedAuthorBuilder? authorBuilder = null;
-        if (queue.IsEmpty) {
+        if (playerMetadata.Queue.IsEmpty) {
             description = "```" +
                           "Queue is empty for now\n" +
                           "You can go and fist your friend\n" +
@@ -250,7 +272,7 @@ public class UserInterfaceService : IUserInterfaceService
 
         }
 
-        int pagesCount = (int) Math.Ceiling((queue.Count - 1) / 10.0);
+        int pagesCount = (int) Math.Ceiling((playerMetadata.Queue.Count - 1) / 10.0);
         if (pagesCount < 1) {
             pagesCount = 1;
         }
@@ -265,7 +287,7 @@ public class UserInterfaceService : IUserInterfaceService
             .WithColor(embedColor)
             .WithTimestamp(DateTimeOffset.Now)
             .WithTitle(embedTitle)
-            .WithFooter($"Page {pageNumber}/{pagesCount}‏‏‎ ‎‏‏‎‎ • ‏‏‎‏‏‎ {queue.Count} songs",
+            .WithFooter($"Page {pageNumber}/{pagesCount}‏‏‎ ‎‏‏‎‎ • ‏‏‎‏‏‎ {playerMetadata.Queue.Count} songs",
                 "http://larc.tech/content/dungeon-bot/up-and-down.png")
             .WithThumbnailUrl(thumbnailUrl)
             .WithDescription(description);
@@ -322,13 +344,13 @@ public class UserInterfaceService : IUserInterfaceService
                                 MusicPlayerState.Playing => "‎‏‏‎ ‎‎‏‏‎ ‎❚❚‎‏‏‎ ‎‎‏‏‎ ‎",
                                 _ => throw new ArgumentOutOfRangeException()
                             } ,
-                            IsDisabled = queue.IsEmpty,
+                            IsDisabled = playerMetadata.Queue.IsEmpty,
                             CustomId = QueueButtonHandler.QUEUE_TOGGLE_STATE_BUTTON_ID,
                         }.Build(),
                         new ButtonBuilder {
                             Style = ButtonStyle.Primary,
                             Label = "‏‏‏‏‎ ‎‏‏‎ ‎❯❯‏‏‏‏‏‎ ‎‏‏‎ ‎",
-                            IsDisabled = queue.Count < 2,
+                            IsDisabled = playerMetadata.Queue.Count < 2,
                             CustomId = QueueButtonHandler.QUEUE_NEXT_SONG_BUTTON_ID,
                         }.Build(),
                     }
@@ -363,14 +385,14 @@ public class UserInterfaceService : IUserInterfaceService
                         new ButtonBuilder {
                             Style = ButtonStyle.Primary,
                             Label = "↝‏‏‎ ‎‏‏‎ ‎ Shuffle queue",
-                            IsDisabled = queue.IsEmpty,
+                            IsDisabled = playerMetadata.Queue.IsEmpty,
                             CustomId = QueueButtonHandler.QUEUE_SHUFFLE_BUTTON_ID,
                         }.Build(),
                         new ButtonBuilder {
                             Style = ButtonStyle.Danger,
                             Label = "Clear queue‏‏‎ ‎",
                             Emote = new Emoji("🗑️"),
-                            IsDisabled = queue.IsEmpty,
+                            IsDisabled = playerMetadata.Queue.IsEmpty,
                             CustomId = QueueButtonHandler.QUEUE_CLEAR_QUEUE_BUTTON_ID,
                         }.Build(),
                     }
