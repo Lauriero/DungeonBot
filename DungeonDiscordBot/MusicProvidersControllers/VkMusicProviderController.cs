@@ -2,6 +2,7 @@
 
 using DungeonDiscordBot.Model;
 using DungeonDiscordBot.Model.MusicProviders;
+using DungeonDiscordBot.Model.MusicProviders.Records;
 using DungeonDiscordBot.Model.MusicProviders.Search;
 using DungeonDiscordBot.Settings;
 
@@ -102,12 +103,11 @@ public class VkMusicProviderController : BaseMusicProviderController
             
             return MusicCollectionResponse.FromSuccess(MusicProvider.VK, 
                 name: $"{firstAudio.Artist} - {firstAudio.Title}",
-                audios: new [] {
-                    new AudioQueueRecord(
-                        provider:          MusicProvider.VK, 
+                audios: new AudioQueueRecord[] {
+                    new VkAudioRecord(
+                        _audioApi, firstAudio, 
                         author:            firstAudio.Artist, 
                         title:             firstAudio.Title,
-                        audioUri:          firstAudio.Url,
                         audioThumbnailUri: firstAudio.Album?.Thumb?.Photo135,
                         duration:          TimeSpan.FromSeconds(firstAudio.Duration),
                         publicUrl:         $"https://vk.com/audio{firstAudio.OwnerId}_{firstAudio.Id}_{firstAudio.AccessKey}")
@@ -194,11 +194,10 @@ public class VkMusicProviderController : BaseMusicProviderController
                 continue;
             }
             
-            records.Add(new AudioQueueRecord(
-                provider:          MusicProvider.VK, 
+            records.Add(new VkAudioRecord(
+                _audioApi, audio, 
                 author:            audio.Artist, 
                 title:             audio.Title,
-                audioUri:          audio.Url,
                 audioThumbnailUri: audio.Album?.Thumb?.Photo135,
                 duration:          TimeSpan.FromSeconds(audio.Duration),
                 publicUrl:         $"https://vk.com/audio{audio.OwnerId}_{audio.Id}_{audio.AccessKey}"));

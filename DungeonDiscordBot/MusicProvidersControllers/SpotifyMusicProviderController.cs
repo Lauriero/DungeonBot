@@ -3,6 +3,7 @@
 using DungeonDiscordBot.InternalAPIs.SpotifyDown;
 using DungeonDiscordBot.Model;
 using DungeonDiscordBot.Model.MusicProviders;
+using DungeonDiscordBot.Model.MusicProviders.Records;
 using DungeonDiscordBot.Model.MusicProviders.Search;
 using DungeonDiscordBot.Settings;
 using DungeonDiscordBot.Utilities;
@@ -132,14 +133,13 @@ public class SpotifyMusicProviderController : BaseMusicProviderController
         return MusicCollectionResponse.FromSuccess(
             provider: MusicProvider.Spotify, 
             name: collectionName,
-            audios: tracks.Select(t => new AudioQueueRecord(
-                provider: MusicProvider.Spotify, 
+            audios: tracks.Select(t => (AudioQueueRecord)new SpotifyAudioRecord(
+                _youtubeApi, _spotifyDownApi, t.Id, 
                 author: GetTrackArtists(t),
                 title: t.Name,
-                audioUriFactory: async () => await GetTrackSource(t),
                 audioThumbnailUriFactory: async () => t.Album.Images.FirstOrDefault()?.Url,
                 duration: TimeSpan.FromMilliseconds(t.DurationMs),
-                publicUrl: $"https://open.spotify.com/track/{t.Id}")));
+                publicUrl: $"https://open.spotify.com/track/{t.Id}")).ToList());
     }
 
     public override async Task<MusicSearchResult> SearchAsync(string query, MusicCollectionType targetCollectionType, int? count = null)

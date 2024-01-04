@@ -18,7 +18,16 @@ public class QueryAutocompleteHandler : AutocompleteHandler
     public override async Task<AutocompletionResult> GenerateSuggestionsAsync(IInteractionContext context, IAutocompleteInteraction autocompleteInteraction,
         IParameterInfo parameter, IServiceProvider services)
     {
-        IEnumerable<MusicQueryHistoryEntity> results = await _dataStorage.GetLastMusicQueries(context.Guild.Id);
+        string? query = autocompleteInteraction.Data.Current.Value.ToString();
+        
+        IEnumerable<MusicQueryHistoryEntity> results;
+        if (string.IsNullOrEmpty(query)) {
+            results = await _dataStorage.GetLastMusicQueries(context.Guild.Id);
+        } else {
+            results = (await _dataStorage.GetLastMusicQueries(context.Guild.Id))
+                .Where(q => q.QueryName.Contains(query, StringComparison.CurrentCultureIgnoreCase));
+        }
+        
         return AutocompletionResult.FromSuccess(results
             .Select(q => new AutocompleteResult(q.QueryName, q.QueryValue))
             .Take(25));

@@ -50,6 +50,43 @@ public interface IDiscordAudioService
     Task SkipTrackAsync(ulong guildId);
 
     /// <summary>
+    /// Removes the track from the queue.
+    /// </summary>
+    /// <param name="guildId">ID of the guild the target queue belongs to.</param>
+    /// <param name="index">
+    /// Index of the track that needs to be removed.
+    /// Allowed values for this parameter are [0..n], that point out to the track on the [2..(n+2)] position in the queue.
+    /// </param>
+    Task RemoveTrackFromQueue(ulong guildId, int index);
+    
+    /// <summary>
+    /// Removes the range of the tracks from the queue.
+    /// </summary>
+    /// <param name="guildId">ID of the guild the target queue belongs to.</param>
+    /// <param name="range">
+    /// Range of the indexes that point out to which tracks should be removed.
+    /// Allowed values for this parameter are [0..n], that point out to the track on the [2..(n+2)] position in the queue.
+    /// </param>
+    Task RemoveTracksFromQueue(ulong guildId, Range range);
+
+    /// <summary>
+    /// Swaps the tracks on positions that correlate to the <paramref name="index1"/>
+    /// and <paramref name="index2"/> parameters.
+    /// </summary>
+    /// <param name="guildId">ID of the guild the target queue belongs to.</param>
+    /// <param name="index1">
+    /// Index to the track that is to be swapped with the track on a <paramref name="index2"/> position.
+    /// </param>
+    /// <param name="index2">
+    /// Index to the track that is to be swapped with the track on a <paramref name="index1"/> position.
+    /// </param>
+    /// <remarks>
+    /// Allowed values for the <paramref name="index1"/> and <paramref name="index2"/> parameters
+    /// are [0..n], that point out to the track on the [2..(n+2)] position in the queue.
+    /// </remarks>
+    Task SwapTracks(ulong guildId, int index1, int index2);
+
+    /// <summary>
     /// Remove all songs from the queue.
     /// </summary>
     /// <param name="guildId">Id of the server.</param>
@@ -66,7 +103,6 @@ public interface IDiscordAudioService
     /// </summary>
     MusicPlayerMetadata GetMusicPlayerMetadata(ulong guildId);
 
-    
     /// <summary>
     /// Updates queue message for this server.
     /// </summary>

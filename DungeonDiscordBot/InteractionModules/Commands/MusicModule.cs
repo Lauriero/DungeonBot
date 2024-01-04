@@ -18,9 +18,7 @@ using DungeonDiscordBot.Utilities;
 
 using Microsoft.Extensions.Logging;
 
-using VkNet.Model;
-
-namespace DungeonDiscordBot.InteractionModules;
+namespace DungeonDiscordBot.InteractionModules.Commands;
 
 public class MusicModule : BaseInteractionModule<SocketInteractionContext>
 {
@@ -55,6 +53,9 @@ public class MusicModule : BaseInteractionModule<SocketInteractionContext>
         [Summary("quantity", "Number of tracks that should be fetched")]
         int quantity = -1,
         
+        [Summary("shuffle", "Flat to mix up the tracks")]
+        bool shuffle = false,
+        
         [Summary("now", "Flag to put the fetched songs in the head of the playlist")]
         bool now = false
     )
@@ -64,7 +65,7 @@ public class MusicModule : BaseInteractionModule<SocketInteractionContext>
             await DeferAsync();
             await EnsureInMusicChannel();
             
-            SocketVoiceChannel? targetChannel = GetVoiceChannelWithCurrentUser();
+            SocketVoiceChannel? targetChannel = Context.GetVoiceChannelWithCurrentUser();
             if (targetChannel is null) {
                 await ModifyOriginalResponseAsync(m => m.Content = "User is not found in any of the voice channels");
                 return;
@@ -87,7 +88,7 @@ public class MusicModule : BaseInteractionModule<SocketInteractionContext>
                 return;
             }
 
-            await PlayByUrlAsync(link, targetChannel, quantity, now);
+            await PlayByUrlAsync(link, targetChannel, quantity, shuffle, now);
         });
     }
     
@@ -106,6 +107,9 @@ public class MusicModule : BaseInteractionModule<SocketInteractionContext>
         [Summary(SearchAutocompleteHandler.TARGET_COLLECTION_TYPE_PARAMETER_NAME, "Type of the entity to search for")]
         MusicCollectionType searchFor = MusicCollectionType.Track,
         
+        [Summary("shuffle", "Flag to mix up the tracks")]
+        bool shuffle = false,
+        
         [Summary("now", "Flag to put the fetched songs in the head of the playlist")]
         bool now = false)
     {
@@ -114,7 +118,7 @@ public class MusicModule : BaseInteractionModule<SocketInteractionContext>
             await DeferAsync();
             await EnsureInMusicChannel();
             
-            SocketVoiceChannel? targetChannel = GetVoiceChannelWithCurrentUser();
+            SocketVoiceChannel? targetChannel = Context.GetVoiceChannelWithCurrentUser();
             if (targetChannel is null) {
                 await ModifyOriginalResponseAsync(m => m.Content = "User is not found in any of the voice channels");
                 return;
@@ -138,7 +142,7 @@ public class MusicModule : BaseInteractionModule<SocketInteractionContext>
                 return;
             }
 
-            await PlayByUrlAsync(link, targetChannel, -1, now);
+            await PlayByUrlAsync(link, targetChannel, -1, shuffle, now);
         });
     }
 
@@ -210,7 +214,48 @@ public class MusicModule : BaseInteractionModule<SocketInteractionContext>
         }, false);
     }
 
-    private async Task PlayByUrlAsync(Uri link, SocketVoiceChannel targetChannel, int quantity = -1, bool now = false)
+    [SlashCommand("remove",
+        "Removes the track from the queue",
+        runMode: RunMode.Async)]
+    public async Task RemoveAsync(
+        [Summary("number", "Number of the track in the queue that needs to be removed")]
+        int position)
+    {
+        await MethodWrapper(async () => {
+            await DeferAsync();
+            await EnsureInMusicChannel();
+            
+            
+        });
+    }
+
+    [SlashCommand("clean",
+        "Cleans up the music control channel, leaving only the music control message",
+        runMode: RunMode.Async)]
+    public async Task CleanAsync(
+        [Summary("limit", "The maximum number of messages to be removed")]
+        int limit = 100)
+    {
+        await MethodWrapper(async () => {
+            await DeferAsync(true);
+            await EnsureInMusicChannel();
+
+            Guild guild = await _dataStorageService.GetGuildDataAsync(Context.Guild.Id);
+            IEnumerable<IMessage> messages = await Context.Channel.GetMessagesAsync(limit)
+                .FlattenAsync();
+
+            DateTimeOffset minimum = DateTimeOffset.Now.Subtract(TimeSpan.FromDays(14));
+            IEnumerable<IMessage> messagesToDelete = messages.Where(m => m.Id != guild.MusicMessageId && 
+                                                                         m.CreatedAt > minimum);
+            
+            await ((ITextChannel) Context.Channel).DeleteMessagesAsync(messagesToDelete);
+            await ModifyOriginalResponseAsync(m =>
+                m.Content = $"**{messagesToDelete.Count()} messages have been removed**");
+        }, false);
+    }
+
+    private async Task PlayByUrlAsync(Uri link, SocketVoiceChannel targetChannel, int quantity = -1,
+        bool shuffle = false, bool now = false)
     {
         BaseMusicProviderController? controller = link.FindMusicProviderController();
         if (controller is null) {
@@ -244,8 +289,12 @@ public class MusicModule : BaseInteractionModule<SocketInteractionContext>
             }
         }
 
+        if (shuffle) {
+            collection.Audios.Shuffle();
+        }
+        
         await ModifyOriginalResponseAsync(m => m.Content = 
-            $"Found {collection.Audios.Count()} audios");
+            $"Found {collection.Audios.Count} audios");
 
         _audioService.GetMusicPlayerMetadata(Context.Guild.Id).VoiceChannel = targetChannel;
         await _dataStorageService.RegisterMusicQueryAsync(Context.Guild.Id, collection.Name, link.AbsoluteUri);
@@ -269,18 +318,5 @@ public class MusicModule : BaseInteractionModule<SocketInteractionContext>
                 "Attempt to execute command of a music module in the channel, " +
                 "that is not registered as a music channel");
         }
-    }
-
-    private SocketVoiceChannel? GetVoiceChannelWithCurrentUser()
-    {
-        foreach (SocketVoiceChannel? channel in Context.Guild.VoiceChannels) {
-            foreach (SocketGuildUser user in channel.ConnectedUsers) {
-                if (user.Id == Context.User.Id) {
-                    return channel;
-                }
-            }
-        }
-
-        return null;
     }
 }

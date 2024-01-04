@@ -116,7 +116,7 @@ public class UserInterfaceService : IUserInterfaceService
         }
         
         rows.Add(new ActionRowBuilder()
-            .WithButton("Refresh", customId: PlaybackHistoryModule.REFRESH_HISTORY_ID, style: ButtonStyle.Secondary)
+            .WithButton(" ", emote: Emote.Parse(Emojis.REFRESH_ICON), customId: PlaybackHistoryModule.REFRESH_HISTORY_ID, style: ButtonStyle.Secondary)
             .WithButton("Play", customId: PlaybackHistoryModule.PLAY_SELECTED_TRACK_ID, 
                 style: ButtonStyle.Primary, disabled: previousTracks.IsEmpty || selectedTrackName is null)
             .WithButton("Play now", customId: PlaybackHistoryModule.PLAY_SELECTED_TRACK_NOW_ID, 
@@ -133,12 +133,17 @@ public class UserInterfaceService : IUserInterfaceService
                 ? $"Track [{selectedTrackName}]({selectedTrackUri}) was selected"
                 : "";
         }
-        
-        return new MessageProperties {
-            Embed = embedBuilder.Build(),
+
+        MessageProperties properties = new MessageProperties {
             Components = componentBuilder.Build(),
             Content = messageContent,
         };
+
+        if (!previousTracks.IsEmpty) {
+            properties.Embed = embedBuilder.Build();
+        }
+
+        return properties;
     }
 
     private async Task<MessageProperties> GenerateMusicMessageAsync(string guildName, MusicPlayerMetadata playerMetadata)

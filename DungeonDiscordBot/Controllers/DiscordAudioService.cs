@@ -142,6 +142,21 @@ public class DiscordAudioService : IDiscordAudioService
         await PlayQueueAsync(guildId);
     }
 
+    public Task RemoveTrackFromQueue(ulong guildId, int index)
+    {
+        throw new NotImplementedException();
+    }
+
+    public Task RemoveTracksFromQueue(ulong guildId, Range range)
+    {
+        throw new NotImplementedException();
+    }
+
+    public Task SwapTracks(ulong guildId, int index1, int index2)
+    {
+        throw new NotImplementedException();
+    }
+
     /// <inheritdoc /> 
     public async Task ClearQueue(ulong guildId)
     {
@@ -297,9 +312,21 @@ public class DiscordAudioService : IDiscordAudioService
                 (this, watch, elapsedBeforeStart), 
                 dueTime: TimeSpan.FromSeconds(record.Duration.TotalSeconds / _UIService.ProgressBarsCount), 
                 TimeSpan.FromSeconds(record.Duration.TotalSeconds / _UIService.ProgressBarsCount)); // Bars count
-        
             
-            using (Process ffmpeg = CreateProcess(await record.AudioUrl.Value, metadata.Elapsed))
+            if (record.AudioUrl is null) {
+                _logger.LogInformation("Fetching the audio url of track {artist} - {title} placed on {url}", 
+                    record.Author, record.Title, record.PublicUrl);
+                await record.UpdateAudioUrlAsync();
+            } else {
+                if (!await HttpExtensions.RemoteFileExists(record.AudioUrl)) {
+                    _logger.LogInformation("Updating the audio url due to the url of track {artist} - {title} " +
+                                           "placed on {url} was not available", 
+                        record.Author, record.Title, record.PublicUrl);
+                    await record.UpdateAudioUrlAsync();
+                }
+            }
+            
+            using (Process ffmpeg = CreateProcess(record.AudioUrl, metadata.Elapsed))
             await using (Stream output = ffmpeg.StandardOutput.BaseStream)
             await using (AudioOutStream? discord = metadata.AudioClient!.CreatePCMStream(AudioApplication.Mixed)) {
                 try {

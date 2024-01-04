@@ -14,5 +14,7 @@ public static class Emojis
     public const string PLAYER_BAR_BG                      = "<:player_bar_bg:1184560927153066014>";
     public const string PLAYER_BAR_BG_LEFT_CORNER          = "<:player_bar_bg_lcorner:1184560923919269931>";
     public const string PLAYER_BAR_BG_RIGHT_CORNER         = "<:player_bar_bg_rcorner:1184560926062559252>";
-    
+
+    public const string REFRESH_ICON                       = "<:icon_refresh:1191680649594146896>";
+
 }

@@ -11,7 +11,7 @@ using Microsoft.Extensions.Logging;
 
 using RunMode = Discord.Interactions.RunMode;
 
-namespace DungeonDiscordBot.InteractionModules;
+namespace DungeonDiscordBot.InteractionModules.Commands;
 
 [DefaultMemberPermissions(GuildPermission.Administrator)]
 [EnabledInDm(false)]

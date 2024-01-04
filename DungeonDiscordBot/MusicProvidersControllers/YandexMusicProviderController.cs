@@ -2,6 +2,7 @@
 
 using DungeonDiscordBot.Model;
 using DungeonDiscordBot.Model.MusicProviders;
+using DungeonDiscordBot.Model.MusicProviders.Records;
 using DungeonDiscordBot.Model.MusicProviders.Search;
 using DungeonDiscordBot.Settings;
 
@@ -122,12 +123,11 @@ public class YandexMusicProviderController : BaseMusicProviderController
                 continue;
             }
             
-            records.Add(new AudioQueueRecord(
-                provider:                 MusicProvider.Yandex,
+            records.Add(new YandexAudioRecord(
+                _api, _apiAuth, track,
                 author:                   track.Artists.First().Name, 
                 title:                    track.Title,
                 duration:                 TimeSpan.FromMilliseconds(track.DurationMs),
-                audioUriFactory:          () => _api.Track.GetFileLinkAsync(_apiAuth, track),
                 audioThumbnailUriFactory: () => track.CoverUri is null 
                     ? Task.FromResult<string?>(null) 
                     : Task.FromResult<string?>($"https://{track.CoverUri.Replace("%%", "200x200")}"),

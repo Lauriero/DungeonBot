@@ -1,10 +1,11 @@
-﻿using DungeonDiscordBot.Model.MusicProviders;
+﻿using System.Diagnostics.CodeAnalysis;
+
+using DungeonDiscordBot.Model.MusicProviders;
 using DungeonDiscordBot.Utilities;
 
 namespace DungeonDiscordBot.Model;
 
-[Serializable]
-public class AudioQueueRecord
+public abstract class AudioQueueRecord
 {
     /// <summary>
     /// Provider that has fetched this audio.
@@ -21,39 +22,29 @@ public class AudioQueueRecord
     public string Title { get; }
     
     public TimeSpan Duration { get; }
-
+    
     /// <summary>
-    /// Uri to the audio content.
+    /// Contains the last modified value of the url to the audio track.
+    /// Or null if the value has never been modified and needs to be updated.
     /// </summary>
-    public AsyncLazy<string> AudioUrl { get; }
+    public string? AudioUrl { get; protected set; }
     
     public AsyncLazy<string?> AudioThumbnailUrl { get; }
-
-    public AudioQueueRecord(MusicProvider provider, string author, string title,
-        Func<Task<string>> audioUriFactory, 
-        Func<Task<string?>> audioThumbnailUriFactory,
-        TimeSpan duration, string? publicUrl)
+    
+    protected AudioQueueRecord(MusicProvider provider, string author, string title,
+        Func<Task<string?>> audioThumbnailUriFactory, TimeSpan duration, string? publicUrl)
     {
         Provider = provider;
         Author = author;
         Title = title;
         Duration = duration;
-        PublicUrl = publicUrl;
-        AudioUrl = new AsyncLazy<string>(audioUriFactory);
         AudioThumbnailUrl = new AsyncLazy<string?>(audioThumbnailUriFactory);
+        PublicUrl = publicUrl;
     }
     
-    public AudioQueueRecord(MusicProvider provider, string author, string title,
-        string audioUri, 
-        string? audioThumbnailUri,
-        TimeSpan duration, string? publicUrl)
-    {
-        Provider = provider;
-        Author = author;
-        Title = title;
-        Duration = duration;
-        PublicUrl = publicUrl;
-        AudioUrl = new AsyncLazy<string>(() => audioUri);
-        AudioThumbnailUrl = new AsyncLazy<string?>(() => audioThumbnailUri);
-    }
+    /// <summary>
+    /// Updates the value of the <see cref="AudioUrl"/> property.
+    /// </summary>
+    [MemberNotNull(nameof(AudioUrl))]
+    public abstract Task UpdateAudioUrlAsync();
 }

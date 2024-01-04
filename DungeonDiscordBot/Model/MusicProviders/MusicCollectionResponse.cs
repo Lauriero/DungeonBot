@@ -34,7 +34,7 @@ public class MusicCollectionResponse
     /// <summary>
     /// Array of audios that were fetched.
     /// </summary>
-    public IEnumerable<AudioQueueRecord> Audios { get; }
+    public IList<AudioQueueRecord> Audios { get; }
     
     /// <summary>
     /// Specifies the type of the error
@@ -49,7 +49,7 @@ public class MusicCollectionResponse
     public string? ErrorMessage { get; }
 
     public static MusicCollectionResponse FromSuccess(MusicProvider provider, string name,
-        IEnumerable<AudioQueueRecord> audios)
+        IList<AudioQueueRecord> audios)
     {
         return new MusicCollectionResponse(provider, name, audios, null, null);
     }
@@ -59,7 +59,7 @@ public class MusicCollectionResponse
         return new MusicCollectionResponse(provider, null, Array.Empty<AudioQueueRecord>(), errorType, errorMessage);
     }
 
-    private MusicCollectionResponse(MusicProvider provider, string? name, IEnumerable<AudioQueueRecord> audios,
+    private MusicCollectionResponse(MusicProvider provider, string? name, IList<AudioQueueRecord> audios,
         MusicResponseErrorType? errorType, string? errorMessage)
     {
         Provider = provider;
