@@ -4,22 +4,19 @@ using System.Text;
 using CaseConverter;
 
 using Discord;
-using Discord.Interactions;
 using Discord.Rest;
 using Discord.WebSocket;
 
 using DungeonDiscordBot.ButtonHandlers;
-using DungeonDiscordBot.Controllers.Abstraction;
 using DungeonDiscordBot.InteractionModules.Components;
 using DungeonDiscordBot.Model;
 using DungeonDiscordBot.Model.Database;
 using DungeonDiscordBot.Model.MusicProviders;
 using DungeonDiscordBot.MusicProvidersControllers;
+using DungeonDiscordBot.Services.Abstraction;
 using DungeonDiscordBot.Utilities;
 
-using VkNet.Model;
-
-namespace DungeonDiscordBot.Controllers;
+namespace DungeonDiscordBot.Services;
 
 public class UserInterfaceService : IUserInterfaceService
 {

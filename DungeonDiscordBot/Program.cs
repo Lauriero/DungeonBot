@@ -6,11 +6,11 @@ using Discord.Interactions;
 using Discord.WebSocket;
 
 using DungeonDiscordBot.ButtonHandlers;
-using DungeonDiscordBot.Controllers;
-using DungeonDiscordBot.Controllers.Abstraction;
 using DungeonDiscordBot.InternalAPIs.SpotifyDown.Extensions;
 using DungeonDiscordBot.Model;
 using DungeonDiscordBot.Model.MusicProviders;
+using DungeonDiscordBot.Services;
+using DungeonDiscordBot.Services.Abstraction;
 using DungeonDiscordBot.Settings;
 
 using Microsoft.Extensions.Configuration;

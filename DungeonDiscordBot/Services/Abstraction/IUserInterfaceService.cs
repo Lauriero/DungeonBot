@@ -3,12 +3,10 @@
 using Discord;
 using Discord.WebSocket;
 
-using DungeonDiscordBot.Controllers.Abstraction;
 using DungeonDiscordBot.Model;
-using DungeonDiscordBot.Model.MusicProviders;
 using DungeonDiscordBot.MusicProvidersControllers;
 
-namespace DungeonDiscordBot.Controllers;
+namespace DungeonDiscordBot.Services.Abstraction;
 
 public interface IUserInterfaceService
 {

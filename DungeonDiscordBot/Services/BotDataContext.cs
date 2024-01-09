@@ -4,7 +4,7 @@ using DungeonDiscordBot.Settings;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 
-namespace DungeonDiscordBot.Controllers;
+namespace DungeonDiscordBot.Services;
 
 public class BotDataContext : DbContext
 {
@@ -17,4 +17,6 @@ public class BotDataContext : DbContext
     public DbSet<Guild> Guilds { get; set; } = null!;
 
     public DbSet<MusicQueryHistoryEntity> MusicQueries { get; set; } = null!;
+
+    public DbSet<FavoriteMusicCollection> FavoriteCollections { get; set; } = null!;
 }

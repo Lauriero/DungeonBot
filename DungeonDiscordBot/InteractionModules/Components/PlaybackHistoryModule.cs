@@ -5,18 +5,17 @@ using Discord.Interactions;
 using Discord.Rest;
 using Discord.WebSocket;
 
-using DungeonDiscordBot.Controllers;
-using DungeonDiscordBot.Controllers.Abstraction;
 using DungeonDiscordBot.Model;
 using DungeonDiscordBot.Model.MusicProviders;
 using DungeonDiscordBot.MusicProvidersControllers;
+using DungeonDiscordBot.Services.Abstraction;
 using DungeonDiscordBot.Utilities;
 
 using Microsoft.Extensions.Logging;
 
 namespace DungeonDiscordBot.InteractionModules.Components;
 
-public class PlaybackHistoryModule : BaseInteractionModule<SocketInteractionContext>
+public class PlaybackHistoryModule : MusicRequesterInteractionModule
 {
     public const string REFRESH_HISTORY_ID = "playback-refresh";
     public const string TRACK_SELECT_ID = "playback-track-select";
@@ -24,16 +23,16 @@ public class PlaybackHistoryModule : BaseInteractionModule<SocketInteractionCont
     public const string PLAY_SELECTED_TRACK_NOW_ID = "playback-play-selected-now";
 
     private readonly IDataStorageService _dataStorage;
-    private readonly IUserInterfaceService _UIService;
+    private readonly IUserInterfaceService _UI;
     private readonly IDiscordAudioService _audioService;
     private readonly ILogger<PlaybackHistoryModule> _logger;
 
-    public PlaybackHistoryModule(ILogger<PlaybackHistoryModule> logger, IUserInterfaceService uiService, 
+    public PlaybackHistoryModule(ILogger<PlaybackHistoryModule> logger, IUserInterfaceService ui, 
         IDiscordAudioService audioService, IDataStorageService dataStorage) 
-        : base(logger)
+        : base(logger, ui)
     {
         _logger = logger;
-        _UIService = uiService;
+        _UI = ui;
         _audioService = audioService;
         _dataStorage = dataStorage;
     }
@@ -56,7 +55,7 @@ public class PlaybackHistoryModule : BaseInteractionModule<SocketInteractionCont
             }
             
             await ModifyOriginalResponseAsync(m => m.ApplyMessageProperties(
-                _UIService.GenerateTrackHistoryMessage(
+                _UI.GenerateTrackHistoryMessage(
                     metadata.PreviousTracks, 
                     selectedTrackUri)));
         }, false);
@@ -85,7 +84,7 @@ public class PlaybackHistoryModule : BaseInteractionModule<SocketInteractionCont
 
             MusicPlayerMetadata metadata = _audioService.GetMusicPlayerMetadata(Context.Guild.Id);
             await ModifyOriginalResponseAsync(m => m.ApplyMessageProperties(
-                _UIService.GenerateTrackHistoryMessage(
+                _UI.GenerateTrackHistoryMessage(
                     metadata.PreviousTracks, 
                     selectedRoles.First())));
         }, false);
@@ -110,7 +109,7 @@ public class PlaybackHistoryModule : BaseInteractionModule<SocketInteractionCont
             }
             
             await ModifyOriginalResponseAsync(m => m.ApplyMessageProperties(
-                _UIService.GenerateTrackHistoryMessage(
+                _UI.GenerateTrackHistoryMessage(
                     _audioService.GetMusicPlayerMetadata(Context.Guild.Id).PreviousTracks, 
                     selectedTrackUri)));
         }, false);
@@ -136,7 +135,7 @@ public class PlaybackHistoryModule : BaseInteractionModule<SocketInteractionCont
             }
             
             await ModifyOriginalResponseAsync(m => m.ApplyMessageProperties(
-                _UIService.GenerateTrackHistoryMessage(
+                _UI.GenerateTrackHistoryMessage(
                     _audioService.GetMusicPlayerMetadata(Context.Guild.Id).PreviousTracks, 
                     selectedTrackUri)));
         }, false);
@@ -155,13 +154,8 @@ public class PlaybackHistoryModule : BaseInteractionModule<SocketInteractionCont
 
     private async Task PlayAsync(Uri trackUri, bool now)
     {
-        BaseMusicProviderController? controller = trackUri.FindMusicProviderController();
-        if (controller is null) {
-            return;
-        }
-        
-        MusicCollectionResponse collection = await controller.GetAudiosFromLinkAsync(trackUri, 1);
-        if (collection.IsError) {
+        MusicCollectionResponse? collection = await FetchMusicCollectionFromUrlAsync(trackUri, 1, false);
+        if (collection is null || collection.IsError) {
             return;
         }
         
@@ -178,7 +172,7 @@ public class PlaybackHistoryModule : BaseInteractionModule<SocketInteractionCont
         }
 
         if (!targetChannel.CheckChannelPermissions(ChannelPermissionsCatalogue.ForVoiceChannel)) {
-            MessageProperties missingPermissionsMessage = _UIService.GenerateMissingPermissionsMessage(
+            MessageProperties missingPermissionsMessage = _UI.GenerateMissingPermissionsMessage(
                 $"Bot should have following permissions in the channel <#{targetChannel.Id}> in order to play music",
                 ChannelPermissionsCatalogue.ForVoiceChannel,
                 targetChannel);

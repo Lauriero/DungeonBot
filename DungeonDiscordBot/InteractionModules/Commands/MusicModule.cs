@@ -6,21 +6,20 @@ using Discord.Interactions;
 using Discord.WebSocket;
 
 using DungeonDiscordBot.AutocompleteHandlers;
-using DungeonDiscordBot.Controllers;
-using DungeonDiscordBot.Controllers.Abstraction;
 using DungeonDiscordBot.Exceptions;
 using DungeonDiscordBot.Model;
 using DungeonDiscordBot.Model.Database;
 using DungeonDiscordBot.Model.MusicProviders;
 using DungeonDiscordBot.Model.MusicProviders.Search;
 using DungeonDiscordBot.MusicProvidersControllers;
+using DungeonDiscordBot.Services.Abstraction;
 using DungeonDiscordBot.Utilities;
 
 using Microsoft.Extensions.Logging;
 
 namespace DungeonDiscordBot.InteractionModules.Commands;
 
-public class MusicModule : BaseInteractionModule<SocketInteractionContext>
+public class MusicModule : MusicRequesterInteractionModule
 {
     private readonly ConcurrentDictionary<ulong, IAudioClient> _connectedChannels = new();
     
@@ -28,17 +27,17 @@ public class MusicModule : BaseInteractionModule<SocketInteractionContext>
     private readonly IDiscordBotService _botService;
     private readonly IDataStorageService _dataStorageService;
     private readonly IDiscordAudioService _audioService;
-    private readonly IUserInterfaceService _UIService;
+    private readonly IUserInterfaceService _UI;
 
     public MusicModule(ILogger<MusicModule> logger, IDiscordAudioService audioService, 
-        IDiscordBotService botService, IDataStorageService dataStorageService, IUserInterfaceService uiService)
-        : base(logger)
+        IDiscordBotService botService, IDataStorageService dataStorageService, IUserInterfaceService ui)
+        : base(logger, ui)
     {
         _logger = logger;
         _botService = botService;
         _audioService = audioService;
         _dataStorageService = dataStorageService;
-        _UIService = uiService;
+        _UI = ui;
     }
 
     [SlashCommand(
@@ -46,7 +45,7 @@ public class MusicModule : BaseInteractionModule<SocketInteractionContext>
         description: "Plays song or playlist from the link", 
         runMode:     RunMode.Async)]
     public async Task PlayAsync(
-        [Summary("query", "Link to a song, playlist, video")]
+        [Summary("query", "Link to a song, playlist or video")]
         [Autocomplete(typeof(QueryAutocompleteHandler))]
         string query,
 
@@ -72,7 +71,7 @@ public class MusicModule : BaseInteractionModule<SocketInteractionContext>
             }
 
             if (!targetChannel.CheckChannelPermissions(ChannelPermissionsCatalogue.ForVoiceChannel)) {
-                MessageProperties missingPermissionsMessage = _UIService.GenerateMissingPermissionsMessage(
+                MessageProperties missingPermissionsMessage = _UI.GenerateMissingPermissionsMessage(
                     $"Bot should have following permissions in the channel <#{targetChannel.Id}> in order to play music",
                     ChannelPermissionsCatalogue.ForVoiceChannel,
                     targetChannel);
@@ -125,7 +124,7 @@ public class MusicModule : BaseInteractionModule<SocketInteractionContext>
             }
 
             if (!targetChannel.CheckChannelPermissions(ChannelPermissionsCatalogue.ForVoiceChannel)) {
-                MessageProperties missingPermissionsMessage = _UIService.GenerateMissingPermissionsMessage(
+                MessageProperties missingPermissionsMessage = _UI.GenerateMissingPermissionsMessage(
                     $"Bot should have following permissions in the channel <#{targetChannel.Id}> in order to play music",
                     ChannelPermissionsCatalogue.ForVoiceChannel,
                     targetChannel);
@@ -210,7 +209,7 @@ public class MusicModule : BaseInteractionModule<SocketInteractionContext>
 
             MusicPlayerMetadata playerMetadata = _audioService.GetMusicPlayerMetadata(Context.Guild.Id);
             await ModifyOriginalResponseAsync(m => m.ApplyMessageProperties(
-                _UIService.GenerateTrackHistoryMessage(playerMetadata.PreviousTracks)));
+                _UI.GenerateTrackHistoryMessage(playerMetadata.PreviousTracks)));
         }, false);
     }
 
@@ -257,38 +256,11 @@ public class MusicModule : BaseInteractionModule<SocketInteractionContext>
     private async Task PlayByUrlAsync(Uri link, SocketVoiceChannel targetChannel, int quantity = -1,
         bool shuffle = false, bool now = false)
     {
-        BaseMusicProviderController? controller = link.FindMusicProviderController();
-        if (controller is null) {
-            await ModifyOriginalResponseAsync(m => m.ApplyMessageProperties(
-                _UIService.GenerateMusicServiceNotFoundMessage(Context.Guild.CurrentUser, link.AbsoluteUri)));
+        MusicCollectionResponse? collection = await FetchMusicCollectionFromUrlAsync(link, quantity, true);
+        if (collection is null || collection.IsError) {
             return;
         }
         
-        MusicCollectionResponse collection = await controller.GetAudiosFromLinkAsync(link, quantity);
-        if (collection.IsError) {
-            _logger.LogInformation($"Error while getting music from {collection.Provider.Name} music provider " +
-                                   $"[guildId: {Context.Guild.Id}; query: {link.AbsoluteUri}]: " +
-                                   $"{collection.ErrorType} - {collection.ErrorMessage}");
-            switch (collection.ErrorType) {
-                case MusicResponseErrorType.PermissionDenied:
-                    await ModifyOriginalResponseAsync((m) 
-                        => m.Content = $"Permission to audio was denied");
-                    return;
-                
-                case MusicResponseErrorType.NoAudioFound:
-                    await ModifyOriginalResponseAsync((m) 
-                        => m.Content = $"No audio was found by the requested url");
-                    return;
-                
-                case MusicResponseErrorType.LinkNotSupported:
-                    await ModifyOriginalResponseAsync(m => m.ApplyMessageProperties(
-                        _UIService.GenerateMusicServiceLinkNotSupportedMessage(controller, link.AbsoluteUri)));
-                    return;
-                default:
-                    return;
-            }
-        }
-
         if (shuffle) {
             collection.Audios.Shuffle();
         }

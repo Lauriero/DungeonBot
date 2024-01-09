@@ -1,7 +1,7 @@
-﻿using DungeonDiscordBot.Controllers.Abstraction;
-using DungeonDiscordBot.Model;
+﻿using DungeonDiscordBot.Model;
 using DungeonDiscordBot.Model.MusicProviders;
 using DungeonDiscordBot.Model.MusicProviders.Search;
+using DungeonDiscordBot.Services.Abstraction;
 
 namespace DungeonDiscordBot.MusicProvidersControllers;
 

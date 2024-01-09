@@ -1,10 +1,6 @@
-﻿using System.Collections.Concurrent;
+﻿using DungeonDiscordBot.Model;
 
-using Discord.WebSocket;
-
-using DungeonDiscordBot.Model;
-
-namespace DungeonDiscordBot.Controllers.Abstraction;
+namespace DungeonDiscordBot.Services.Abstraction;
 
 public interface IDiscordAudioService
 {
@@ -55,7 +51,8 @@ public interface IDiscordAudioService
     /// <param name="guildId">ID of the guild the target queue belongs to.</param>
     /// <param name="index">
     /// Index of the track that needs to be removed.
-    /// Allowed values for this parameter are [0..n], that point out to the track on the [2..(n+2)] position in the queue.
+    /// Allowed values for this parameter are [0..n], that point out to the track on the [2..(n+2)] position in the queue,
+    /// where n+2 is the number of tracks in the queue. 
     /// </param>
     Task RemoveTrackFromQueue(ulong guildId, int index);
     
@@ -75,10 +72,10 @@ public interface IDiscordAudioService
     /// </summary>
     /// <param name="guildId">ID of the guild the target queue belongs to.</param>
     /// <param name="index1">
-    /// Index to the track that is to be swapped with the track on a <paramref name="index2"/> position.
+    /// Index to the track that is to be swapped with the track with the <paramref name="index2"/>.
     /// </param>
     /// <param name="index2">
-    /// Index to the track that is to be swapped with the track on a <paramref name="index1"/> position.
+    /// Index to the track that is to be swapped with the track with the <paramref name="index1"/>.
     /// </param>
     /// <remarks>
     /// Allowed values for the <paramref name="index1"/> and <paramref name="index2"/> parameters

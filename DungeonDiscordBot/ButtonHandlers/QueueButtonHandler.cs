@@ -1,7 +1,7 @@
 ﻿using Discord.WebSocket;
 
-using DungeonDiscordBot.Controllers.Abstraction;
 using DungeonDiscordBot.Model;
+using DungeonDiscordBot.Services.Abstraction;
 
 using Microsoft.Extensions.Logging;
 

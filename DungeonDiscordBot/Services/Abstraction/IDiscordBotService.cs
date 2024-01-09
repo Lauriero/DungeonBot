@@ -1,6 +1,6 @@
 ﻿using Discord.WebSocket;
 
-namespace DungeonDiscordBot.Controllers.Abstraction
+namespace DungeonDiscordBot.Services.Abstraction
 {
     public interface IDiscordBotService : IRequireInitiationService
     {

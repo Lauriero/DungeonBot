@@ -1,8 +1,8 @@
 ﻿using Discord;
 using Discord.Interactions;
 
-using DungeonDiscordBot.Controllers.Abstraction;
 using DungeonDiscordBot.Model.Database;
+using DungeonDiscordBot.Services.Abstraction;
 
 namespace DungeonDiscordBot.AutocompleteHandlers;
 
@@ -15,21 +15,30 @@ public class QueryAutocompleteHandler : AutocompleteHandler
         _dataStorage = dataStorage;
     }
     
-    public override async Task<AutocompletionResult> GenerateSuggestionsAsync(IInteractionContext context, IAutocompleteInteraction autocompleteInteraction,
-        IParameterInfo parameter, IServiceProvider services)
+    public override async Task<AutocompletionResult> GenerateSuggestionsAsync(IInteractionContext context, 
+        IAutocompleteInteraction autocompleteInteraction, IParameterInfo parameter, IServiceProvider services)
     {
         string? query = autocompleteInteraction.Data.Current.Value.ToString();
         
-        IEnumerable<MusicQueryHistoryEntity> results;
-        if (string.IsNullOrEmpty(query)) {
-            results = await _dataStorage.GetLastMusicQueries(context.Guild.Id);
-        } else {
-            results = (await _dataStorage.GetLastMusicQueries(context.Guild.Id))
-                .Where(q => q.QueryName.Contains(query, StringComparison.CurrentCultureIgnoreCase));
-        }
+        List<FavoriteMusicCollection> favorites =
+            await _dataStorage.GetUserFavoriteMusicCollectionsAsync(context.User.Id);
+
+        IEnumerable<MusicQueryHistoryEntity> queries = await _dataStorage.GetLastMusicQueries(context.Guild.Id,
+            25 - favorites.Count);
         
-        return AutocompletionResult.FromSuccess(results
-            .Select(q => new AutocompleteResult(q.QueryName, q.QueryValue))
-            .Take(25));
+        List<AutocompleteResult> autocompleteResults = favorites
+            .Select(c => new AutocompleteResult($"★ {c.CollectionName}", c.Query))
+            .ToList();
+
+        autocompleteResults.AddRange(queries
+            .Select(q => new AutocompleteResult(q.QueryName, q.QueryValue)));
+
+        IEnumerable<MusicQueryHistoryEntity> results;
+        if (!string.IsNullOrEmpty(query)) {
+            autocompleteResults.RemoveAll(r =>
+                !r.Name.Contains(query, StringComparison.OrdinalIgnoreCase));
+        } 
+
+        return AutocompletionResult.FromSuccess(autocompleteResults.Take(25));
     }
 }

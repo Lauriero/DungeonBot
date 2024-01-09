@@ -2,17 +2,20 @@
 
 using Discord.WebSocket;
 
-using DungeonDiscordBot.Controllers.Abstraction;
+using DungeonDiscordBot.Model;
 using DungeonDiscordBot.Model.Database;
+using DungeonDiscordBot.Services.Abstraction;
 
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
-namespace DungeonDiscordBot.Controllers;
+namespace DungeonDiscordBot.Services;
 
 public class DataStorageService : IDataStorageService
 {
-    public int MaxMusicQueryEntityCount => 10;
+    public int MaxMusicQueryEntityCount => 25;
+
+    public int MaxUserFavoritesCount => 10;
 
     public ConcurrentDictionary<ulong, string> HistoryMessageSelectedOptions { get; } = new();
 
@@ -103,7 +106,7 @@ public class DataStorageService : IDataStorageService
     {
         return _dataContext.Guilds
             .Where(g => g.MusicChannelId.HasValue && g.MusicMessageId.HasValue)
-            .ToListAsync(cancellationToken: token);
+            .ToListAsync(token);
     }
 
     public async Task RegisterMusicQueryAsync(ulong guildId, string queryName, string queryValue, CancellationToken token = default)
@@ -130,13 +133,44 @@ public class DataStorageService : IDataStorageService
         await _dataContext.SaveChangesAsync(token);
     }
 
-    public Task<List<MusicQueryHistoryEntity>> GetLastMusicQueries(ulong guildId, CancellationToken token = default)
+    public Task<List<MusicQueryHistoryEntity>> GetLastMusicQueries(ulong guildId, int? count = null, CancellationToken token = default)
     {
         return _dataContext.MusicQueries
             .Where(q => q.GuildId == guildId)
             .OrderByDescending(q => q.QueriedAt)
-            .Take(MaxMusicQueryEntityCount)
+            .Take(count ?? MaxMusicQueryEntityCount)
             .ToListAsync(token);
     }
-    
+
+    public async Task<AddFavoriteCollectionResult> AddFavoriteMusicCollectionAsync(ulong userId, string name, string query,
+        CancellationToken token = default)
+    {
+        if (await _dataContext.FavoriteCollections.CountAsync() == MaxUserFavoritesCount) {
+            return AddFavoriteCollectionResult.OutOfSpace;
+        }
+
+        if (await _dataContext.FavoriteCollections
+                .Where(c => c.UserId == userId && c.Query == query)
+                .AnyAsync()) {
+            return AddFavoriteCollectionResult.AlreadyAdded;
+        }
+
+        await _dataContext.FavoriteCollections.AddAsync(new FavoriteMusicCollection {
+            UserId = userId,
+            CollectionName = name,
+            Query = query,
+            CreatedAt = DateTime.Now
+        }, token);
+
+        await _dataContext.SaveChangesAsync(token);
+        return AddFavoriteCollectionResult.Okay;
+    }
+
+    public Task<List<FavoriteMusicCollection>> GetUserFavoriteMusicCollectionsAsync(ulong userId, CancellationToken token = default)
+    {
+        return _dataContext.FavoriteCollections
+            .Where(c => c.UserId == userId)
+            .OrderByDescending(c => c.CreatedAt)
+            .ToListAsync(token);
+    }
 }

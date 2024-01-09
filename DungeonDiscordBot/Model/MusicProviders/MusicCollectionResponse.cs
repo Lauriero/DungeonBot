@@ -3,7 +3,7 @@
 namespace DungeonDiscordBot.Model.MusicProviders;
 
 /// <summary>
-/// Response of the music provider.
+/// Collection of the music provider.
 /// Contains music list with some metadata about the query.
 /// If the audio collection has no entries, it is advised to set <see cref="Name"/> to "Not found".
 /// </summary>

@@ -2,9 +2,10 @@
 
 using Discord.WebSocket;
 
+using DungeonDiscordBot.Model;
 using DungeonDiscordBot.Model.Database;
 
-namespace DungeonDiscordBot.Controllers.Abstraction;
+namespace DungeonDiscordBot.Services.Abstraction;
 
 public interface IDataStorageService
 {
@@ -12,6 +13,11 @@ public interface IDataStorageService
     /// Maximum number of music queries for the one guild that are saved at the database. 
     /// </summary>
     int MaxMusicQueryEntityCount { get; }
+
+    /// <summary>
+    /// Maximum number of the music collection that can belong to one discord user.
+    /// </summary>
+    int MaxUserFavoritesCount { get; }
     
     /// <summary>
     /// 
@@ -87,7 +93,37 @@ public interface IDataStorageService
     /// Number of queries is specified by <see cref="MaxMusicQueryEntityCount"/>
     /// </summary>
     /// <param name="guildId">Id of the guild</param>
+    /// <param name="count">
+    /// Count of the queries to retrieve.
+    /// <see cref="MaxMusicQueryEntityCount"/> by default.
+    /// </param>
     /// <param name="token">Token to cancel the query</param>
-    Task<List<MusicQueryHistoryEntity>> GetLastMusicQueries(ulong guildId,
+    Task<List<MusicQueryHistoryEntity>> GetLastMusicQueries(ulong guildId, int? count = null,
         CancellationToken token = default);
+
+    /// <summary>
+    /// Adds a music collection to the user favorites.
+    /// </summary>
+    /// <param name="userId">
+    /// Id of the discord user that has requested this collection
+    /// to be added to the personal favorites.
+    /// </param>
+    /// <param name="name">Name of the collection to be added to the user favorites.</param>
+    /// <param name="query">Uri to the resource the music collection is located at.</param>
+    /// <param name="token"></param>
+    /// <returns>
+    /// Returns result code.
+    /// <see cref="AddFavoriteCollectionResult.Okay"/> if the collection has been successfully added.
+    /// <see cref="AddFavoriteCollectionResult.AlreadyAdded"/> is the collection with the same query
+    /// already exists as a user favorites.
+    /// <see cref="AddFavoriteCollectionResult.OutOfSpace"/> if the user has reached a limit of
+    /// <see cref="MaxUserFavoritesCount"/> favorites collections.
+    /// </returns>
+    Task<AddFavoriteCollectionResult> AddFavoriteMusicCollectionAsync(ulong userId, string name, string query,
+        CancellationToken token = default);
+    
+    /// <summary>
+    /// Gets a list of user favorites music collections.
+    /// </summary>
+    Task<List<FavoriteMusicCollection>> GetUserFavoriteMusicCollectionsAsync(ulong userId, CancellationToken token = default);
 }

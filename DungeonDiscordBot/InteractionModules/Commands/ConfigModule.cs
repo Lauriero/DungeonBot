@@ -2,9 +2,8 @@
 using Discord.Interactions;
 using Discord.WebSocket;
 
-using DungeonDiscordBot.Controllers;
-using DungeonDiscordBot.Controllers.Abstraction;
 using DungeonDiscordBot.Model;
+using DungeonDiscordBot.Services.Abstraction;
 using DungeonDiscordBot.Utilities;
 
 using Microsoft.Extensions.Logging;
@@ -39,6 +38,7 @@ public class ConfigModule : BaseInteractionModule<SocketInteractionContext>
     [RequireRole(UserRoles.DUNGEON_MASTER_USER_ROLE)]
     [RequireBotPermission(ChannelPermission.SendMessages | ChannelPermission.UseExternalEmojis)]
     public async Task RegisterMusicChannelAsync(
+        [ChannelTypes(ChannelType.Text)]
         [Summary("channel", "The channel to control music, new messages in this channel will be removed!")]
         SocketTextChannel channel
     ) {

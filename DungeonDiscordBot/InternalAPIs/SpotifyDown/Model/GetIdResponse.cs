@@ -5,7 +5,7 @@ using Newtonsoft.Json;
 namespace DungeonDiscordBot.InternalAPIs.SpotifyDown.Model;
 
 /// <summary>
-/// Response of the "https://api.spotifydown.com/getId/:id" method.
+/// Collection of the "https://api.spotifydown.com/getId/:id" method.
 /// Contains YouTube video ID or the error message.
 /// </summary>
 [Serializable]

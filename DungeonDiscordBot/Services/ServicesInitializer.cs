@@ -1,14 +1,13 @@
-﻿using DungeonDiscordBot.Controllers.Abstraction;
-using DungeonDiscordBot.Model;
-using DungeonDiscordBot.Model.MusicProviders;
+﻿using DungeonDiscordBot.Model.MusicProviders;
 using DungeonDiscordBot.MusicProvidersControllers;
+using DungeonDiscordBot.Services.Abstraction;
 using DungeonDiscordBot.Utilities;
 
 using Extensions.Hosting.AsyncInitialization;
 
 using Microsoft.Extensions.DependencyInjection;
 
-namespace DungeonDiscordBot.Controllers;
+namespace DungeonDiscordBot.Services;
 
 public class ServicesInitializer : IAsyncInitializer
 {
