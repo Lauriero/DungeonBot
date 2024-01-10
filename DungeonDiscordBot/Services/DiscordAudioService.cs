@@ -287,90 +287,116 @@ public class DiscordAudioService : IDiscordAudioService
         while (!metadata.Queue.IsEmpty) {
             metadata.State = MusicPlayerState.Playing;
             await UpdateSongsQueueAsync(guildId, token: token, message: reason);
-            
             if (!metadata.Queue.TryPeek(out AudioQueueRecord? record)) {
                 throw new InvalidOperationException("Error peeking in the audio queue.");
             }
 
-            if (record.AudioUrl is null) {
-                _logger.LogInformation("Fetching the audio url of track {artist} - {title} placed on {url}", 
-                    record.Author, record.Title, record.PublicUrl);
-                await record.UpdateAudioUrlAsync();
-            } else {
-                if (!await HttpExtensions.RemoteFileExists(record.AudioUrl)) {
-                    _logger.LogInformation("Updating the audio url due to the url of track {artist} - {title} " +
-                                           "placed on {url} was not available", 
+            try {
+                if (record.AudioUrl is null) {
+                    _logger.LogInformation("Fetching the audio url of track {artist} - {title} placed on {url}",
                         record.Author, record.Title, record.PublicUrl);
                     await record.UpdateAudioUrlAsync();
-                }
-            }
-            
-            TimeSpan elapsedBeforeStart = metadata.Elapsed;
-            Stopwatch watch = new Stopwatch();
-
-            if (metadata.ElapsedTimer is not null) {
-                await metadata.ElapsedTimer.DisposeAsync();
-            } 
-            
-            metadata.ElapsedTimer = new Timer(
-                das => {
-                    (DiscordAudioService, Stopwatch watch, TimeSpan) tuple = ((DiscordAudioService, Stopwatch, TimeSpan))das!;
-                    metadata.Elapsed = tuple.Item2.Elapsed + tuple.Item3;
-                    tuple.Item1.UpdateSongsQueueAsync(guildId, token: default)
-                        .GetAwaiter().GetResult();
-                }, 
-                (this, watch, elapsedBeforeStart), 
-                dueTime: TimeSpan.FromSeconds(record.Duration.TotalSeconds / _UIService.ProgressBarsCount), 
-                TimeSpan.FromSeconds(record.Duration.TotalSeconds / _UIService.ProgressBarsCount)); // Bars count
-
-            watch.Start();
-            using (Process ffmpeg = CreateProcess(record.AudioUrl, metadata.Elapsed))
-            await using (Stream output = ffmpeg.StandardOutput.BaseStream)
-            await using (AudioOutStream? discord = metadata.AudioClient!.CreatePCMStream(AudioApplication.Mixed)) {
-                try {
-                    await output.CopyToAsync(discord, token);
-                } catch (OperationCanceledException) {
-                } finally {
-                    watch.Stop();
-                    if (metadata.ElapsedTimer is not null) {
-                        await metadata.ElapsedTimer.DisposeAsync();
-                        metadata.ElapsedTimer = null;
-                    }
-                    
-                    await discord.FlushAsync();
-                    if (!ffmpeg.HasExited) {
-                        ffmpeg.Kill(true);
+                } else {
+                    if (!await HttpExtensions.RemoteFileExists(record.AudioUrl, TimeSpan.FromSeconds(3))) {
+                        _logger.LogInformation("Updating the audio url due to the url of track {artist} - {title} " +
+                                               "placed on {url} was not available",
+                            record.Author, record.Title, record.PublicUrl);
+                        await record.UpdateAudioUrlAsync();
                     }
                 }
-            }
 
-            if (token.IsCancellationRequested) {
-                if (metadata.StopRequested) {
+                if (!await HttpExtensions.RemoteFileExists(record.AudioUrl, TimeSpan.FromSeconds(3))) {
+                    _logger.LogInformation("Skipping the track {artist} - {title} located at {url} " +
+                                           "cause audio url is unavailable",
+                        record.Author, record.Title, record.PublicUrl);
+
                     metadata.State = MusicPlayerState.Paused;
-                    metadata.StopRequested = false;
-                    metadata.PlayerStoppedCompletionSource?.SetResult();
+                    if (!metadata.Queue.TryDequeue(out AudioQueueRecord? _)) {
+                        throw new InvalidOperationException("Error dequeuing audio from the queue.");
+                    }
+
+                    continue;
+                }
+
+                TimeSpan elapsedBeforeStart = metadata.Elapsed;
+                Stopwatch watch = new Stopwatch();
+
+                if (metadata.ElapsedTimer is not null) {
+                    await metadata.ElapsedTimer.DisposeAsync();
+                }
+
+                metadata.ElapsedTimer = new Timer(das => {
+                        (DiscordAudioService, Stopwatch watch, TimeSpan) tuple =
+                            ((DiscordAudioService, Stopwatch, TimeSpan)) das!;
+                        metadata.Elapsed = tuple.Item2.Elapsed + tuple.Item3;
+                        tuple.Item1.UpdateSongsQueueAsync(guildId, token: default)
+                            .GetAwaiter().GetResult();
+                    },
+                    (this, watch, elapsedBeforeStart),
+                    dueTime: TimeSpan.FromSeconds(record.Duration.TotalSeconds / _UIService.ProgressBarsCount),
+                    TimeSpan.FromSeconds(record.Duration.TotalSeconds / _UIService.ProgressBarsCount)); // Bars count
+
+                watch.Start();
+                using (Process ffmpeg = CreateProcess(record.AudioUrl, metadata.Elapsed))
+                await using (Stream output = ffmpeg.StandardOutput.BaseStream)
+                await using (AudioOutStream? discord = metadata.AudioClient!.CreatePCMStream(AudioApplication.Mixed)) {
+                    try {
+                        await output.CopyToAsync(discord, token);
+                    } catch (OperationCanceledException) {
+                    } finally {
+                        watch.Stop();
+                        if (metadata.ElapsedTimer is not null) {
+                            await metadata.ElapsedTimer.DisposeAsync();
+                            metadata.ElapsedTimer = null;
+                        }
+
+                        await discord.FlushAsync();
+                        if (!ffmpeg.HasExited) {
+                            ffmpeg.Kill(true);
+                        }
+                    }
+                }
+
+                if (token.IsCancellationRequested) {
+                    if (metadata.StopRequested) {
+                        metadata.State = MusicPlayerState.Paused;
+                        metadata.StopRequested = false;
+                        metadata.PlayerStoppedCompletionSource?.SetResult();
+
+                        return;
+                    }
+
+                    metadata.Elapsed = watch.Elapsed + elapsedBeforeStart;
+
                     return;
                 }
 
-                metadata.Elapsed = watch.Elapsed + elapsedBeforeStart;
-                return;
-            }
+                metadata.State = MusicPlayerState.Paused;
+                metadata.Elapsed = TimeSpan.Zero;
 
-            metadata.State = MusicPlayerState.Paused;
-            metadata.Elapsed = TimeSpan.Zero;
-            
-            if (metadata.RepeatMode != RepeatMode.RepeatSong) {
-                metadata.PreviousTracks.Push(record);
+                if (metadata.RepeatMode != RepeatMode.RepeatSong) {
+                    metadata.PreviousTracks.Push(record);
+                    if (!metadata.Queue.TryDequeue(out AudioQueueRecord? _)) {
+                        throw new InvalidOperationException("Error dequeuing audio from the queue.");
+                    }
+                }
+
+                if (metadata.RepeatMode == RepeatMode.RepeatQueue) {
+                    metadata.Queue.Enqueue(record);
+                }
+            } catch (Exception e) {
+                _logger.LogInformation("Skipping the track due to the error occurred while playing the track {artist} - {title} " +
+                                               "placed on {url}",
+                    record.Author, record.Title, record.PublicUrl);
+                _logger.LogDebug(e, "Error while playing the track: ");
+                
+                metadata.State = MusicPlayerState.Paused;
                 if (!metadata.Queue.TryDequeue(out AudioQueueRecord? _)) {
                     throw new InvalidOperationException("Error dequeuing audio from the queue.");
                 }
             }
-            
-            if (metadata.RepeatMode == RepeatMode.RepeatQueue) {
-                metadata.Queue.Enqueue(record);
-            }
         }
-        
+
         await ClearQueue(guildId);
     }
 
@@ -386,7 +412,7 @@ public class DiscordAudioService : IDiscordAudioService
         {
             FileName = _settings.FFMpegExecutable,
             Arguments = $"-hide_banner -err_detect ignore_err -ignore_unknown " +
-                        $"-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5 " +
+                        $"-reconnect 1 -reconnect_streamed 0 -reconnect_delay_max 5 " +
                         $"-re -i \"{path}\" -ac 2 -f s16le " +
                         $"-ss {startTime:hh\\:mm\\:ss} -ar 48000 pipe:1",
             UseShellExecute = false,

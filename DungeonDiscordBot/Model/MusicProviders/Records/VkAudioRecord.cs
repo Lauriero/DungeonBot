@@ -13,7 +13,7 @@ public class VkAudioRecord : AudioQueueRecord
     public VkAudioRecord(
         IVkAudioApi api, Audio vkAudio, MusicCollectionMetadata metadata, string author, string title,
         string? audioThumbnailUri, TimeSpan duration, string? publicUrl) 
-        : base(MusicProvider.Spotify, metadata, author, title, async () => audioThumbnailUri, duration, publicUrl)
+        : base(MusicProvider.VK, metadata, author, title, async () => audioThumbnailUri, duration, publicUrl)
     {
         _api = api;
         _vkAudio = vkAudio;
@@ -22,7 +22,7 @@ public class VkAudioRecord : AudioQueueRecord
 
     public override async Task UpdateAudioUrlAsync()
     {
-        List<Audio> audios = await _api.GetAudiosByIdAsync(new[] { $"{_vkAudio.Id}_{_vkAudio.OwnerId}" });
+        List<Audio> audios = await _api.GetAudiosByIdAsync(new[] { $"{_vkAudio.OwnerId}_{_vkAudio.Id}" });
         AudioUrl = audios.First().Url;
     }
 }

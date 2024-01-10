@@ -104,7 +104,6 @@ public class VkMusicProviderController : BaseMusicProviderController
 
             metadata.Name = $"{firstAudio.Artist} - {firstAudio.Title}";
             metadata.Type = MusicCollectionType.Track;
-            audios.Add(firstAudio);
         } else if (playlistMatch.Success) {
             await onPlaylistMatch(playlistMatch);
         } else if (sovaPlaylistMatch.Success) {
@@ -170,21 +169,15 @@ public class VkMusicProviderController : BaseMusicProviderController
                 accessToken));
         }
 
-        int toAddCount = audios.Count;
-        if (count > -1) {
-            toAddCount = count;
-        }
-        
-        int addedCount = 0;
-        OnAudiosProcessingStarted(audios.Count);
-        
+        int addedAudiosCount = 0;
         List<AudioQueueRecord> records = new List<AudioQueueRecord>();
-        for (int i = 0; i < toAddCount; i++) {
+        for (int i = 0; i < (count > -1 ? count : audios.Count); i++) {
             Audio audio = audios.ElementAt(i);
             if (string.IsNullOrEmpty(audio.Url)) {
                 continue;
             }
-            
+
+            addedAudiosCount++;
             records.Add(new VkAudioRecord(
                 _audioApi, audio, 
                 metadata: metadata,
@@ -193,11 +186,9 @@ public class VkMusicProviderController : BaseMusicProviderController
                 audioThumbnailUri:  audio.Album?.Thumb?.Photo135,
                 duration:           TimeSpan.FromSeconds(audio.Duration),
                 publicUrl:          $"https://vk.com/audio{audio.OwnerId}_{audio.Id}_{audio.AccessKey}"));
-            addedCount++;
         }
-        
-        OnAudiosProcessed(addedCount);
-        if (addedCount == 0) {
+
+        if (addedAudiosCount == 0) {
             return MusicCollectionResponse.FromError(MusicProvider.VK, MusicResponseErrorType.NoAudioFound, 
                     "There's nothing in the requested album");
         }

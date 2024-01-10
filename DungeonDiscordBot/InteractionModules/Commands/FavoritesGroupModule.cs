@@ -57,7 +57,7 @@ public class FavoritesGroupModule : MusicRequesterInteractionModule
                 return;
             }
             
-            MusicCollectionResponse? collection = await FetchMusicCollectionFromUrlAsync(uri, 0, true);
+            MusicCollectionResponse? collection = await FetchMusicCollectionFromUrlAsync(uri, -1, true);
             if (collection is null || collection.IsError) {
                 return;
             }
