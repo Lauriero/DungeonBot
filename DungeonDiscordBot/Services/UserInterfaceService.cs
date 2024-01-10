@@ -14,6 +14,7 @@ using DungeonDiscordBot.Model.Database;
 using DungeonDiscordBot.Model.MusicProviders;
 using DungeonDiscordBot.MusicProvidersControllers;
 using DungeonDiscordBot.Services.Abstraction;
+using DungeonDiscordBot.Storage.Abstraction;
 using DungeonDiscordBot.Utilities;
 
 namespace DungeonDiscordBot.Services;
@@ -22,17 +23,17 @@ public class UserInterfaceService : IUserInterfaceService
 {
     public int ProgressBarsCount => 15;
 
-    private readonly IDataStorageService _dataStorageService;
+    private readonly IGuildsStorage _dataStorage;
 
-    public UserInterfaceService(IDataStorageService dataStorageService)
+    public UserInterfaceService(IGuildsStorage dataStorage)
     {
-        _dataStorageService = dataStorageService;
+        _dataStorage = dataStorage;
     }
     
     public async Task<ulong> CreateSongsQueueMessageAsync(ulong guildId, MusicPlayerMetadata playerMetadata,
         SocketTextChannel musicControlChannel, CancellationToken token = default)
     {
-        Guild guild = await _dataStorageService.GetGuildDataAsync(guildId, token);
+        Guild guild = await _dataStorage.GetGuildAsync(guildId, token);
         
         MessageProperties musicMessage = await GenerateMusicMessageAsync(guild.Name, playerMetadata);
         RestUserMessage message = await musicControlChannel.SendMessageAsync("", 
@@ -49,8 +50,8 @@ public class UserInterfaceService : IUserInterfaceService
     public async Task UpdateSongsQueueMessageAsync(ulong guildId, MusicPlayerMetadata playerMetadata, 
         string message = "", CancellationToken token = default)
     {
-        Guild guild = await _dataStorageService.GetGuildDataAsync(guildId, token);
-        SocketTextChannel musicControlChannel = _dataStorageService.GetMusicControlChannel(guildId);
+        Guild guild = await _dataStorage.GetGuildAsync(guildId, token);
+        SocketTextChannel musicControlChannel = _dataStorage.GetMusicControlChannel(guildId);
         MessageProperties musicMessage = await GenerateMusicMessageAsync(musicControlChannel.Guild.Name, playerMetadata);
         try {
             await musicControlChannel.ModifyMessageAsync(guild.MusicMessageId!.Value, m => {
@@ -143,6 +144,65 @@ public class UserInterfaceService : IUserInterfaceService
         return properties;
     }
 
+    public MessageProperties GenerateUserFavoritesMessage(List<FavoriteMusicCollection> favorites,
+        string? selectedCollectionQuery = null)
+    {
+        StringBuilder descriptionBuilder = new StringBuilder();
+        for (int i = 0; i < favorites.Count; i++) {
+            FavoriteMusicCollection collection = favorites.ElementAt(i);
+            descriptionBuilder.AppendLine($"`[{i + 1}]`‎ ‎‏‏‎‎ [{collection.CollectionName}]({collection.Query})");
+        }
+        
+        EmbedBuilder embedBuilder = new EmbedBuilder()
+            .WithColor(EmbedColors.Info)
+            .WithCurrentTimestamp()
+            .WithThumbnailUrl("http://larc.tech/content/dungeon-bot/favorite.png")
+            .WithTitle("Favorite collections: ")
+            .WithDescription(descriptionBuilder.ToString());
+
+        string? selectedCollectionName = null;
+        List<ActionRowBuilder> rows = new List<ActionRowBuilder>();
+        if (favorites.Count != 0) {
+            rows.Add(new ActionRowBuilder()
+                .WithSelectMenu(new SelectMenuBuilder()
+                    .WithPlaceholder("Select a track operate with")
+                    .WithCustomId(FavoritesListModule.COLLECTION_SELECT_ID)
+                    .WithOptions(favorites.Select(c => {
+                            bool selected = false;
+                            if (selectedCollectionQuery == c.Query) {
+                                selectedCollectionName = c.CollectionName;
+                                selected = true;
+                            }
+                            
+                            return new SelectMenuOptionBuilder()
+                                .WithLabel(c.CollectionName)
+                                .WithValue(c.Query)
+                                .WithDefault(selected);
+                        })
+                        .ToList())));
+        }
+        
+        rows.Add(new ActionRowBuilder()
+            .WithButton(" ", emote: Emote.Parse(Emojis.REFRESH_ICON), customId: FavoritesListModule.REFRESH_FAVORITES_ID, style: ButtonStyle.Secondary)
+            .WithButton("Play", customId: FavoritesListModule.PLAY_SELECTED_TRACK_ID, 
+                style: ButtonStyle.Primary, disabled: selectedCollectionName is null)
+            .WithButton("Play now", customId: FavoritesListModule.PLAY_SELECTED_TRACK_NOW_ID, 
+                style: ButtonStyle.Primary, disabled: selectedCollectionName is null)
+            .WithButton("Delete", customId: FavoritesListModule.DELETE_SELECTED_TRACK_ID, 
+                style: ButtonStyle.Danger, disabled: selectedCollectionName is null));
+        
+        ComponentBuilder componentBuilder = new ComponentBuilder().WithRows(rows);
+        string messageContent = selectedCollectionName is not null
+            ? $"Track [{selectedCollectionName}]({selectedCollectionQuery}) was selected"
+            : "";
+
+        return new MessageProperties {
+            Embed = embedBuilder.Build(),
+            Components = componentBuilder.Build(),
+            Content = messageContent,
+        };
+    }
+    
     private async Task<MessageProperties> GenerateMusicMessageAsync(string guildName, MusicPlayerMetadata playerMetadata)
     {
         int pageNumber = playerMetadata.PageNumber;

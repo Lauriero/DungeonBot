@@ -12,6 +12,7 @@ using DungeonDiscordBot.Model.MusicProviders;
 using DungeonDiscordBot.MusicProvidersControllers;
 using DungeonDiscordBot.Services.Abstraction;
 using DungeonDiscordBot.Settings;
+using DungeonDiscordBot.Storage.Abstraction;
 using DungeonDiscordBot.TypeConverters;
 using DungeonDiscordBot.Utilities;
 
@@ -28,7 +29,7 @@ namespace DungeonDiscordBot.Services
         private readonly AppSettings _settings;
         private readonly DiscordSocketClient _client;
         private readonly InteractionService _interactions;
-        private readonly IDataStorageService _dataStorageService;
+        private readonly IGuildsStorage _dataStorage;
         private readonly IServiceProvider _serviceProvider;
         private readonly IDiscordAudioService _audioService;
         private readonly IUserInterfaceService _UIService;
@@ -36,13 +37,13 @@ namespace DungeonDiscordBot.Services
         
         public DiscordBotService(IServiceProvider serviceProvider, ILogger<IDiscordBotService> logger, 
             DiscordSocketClient client, InteractionService interactions, IOptions<AppSettings> settings, 
-            IDataStorageService dataStorageService, IDiscordAudioService audioService, IUserInterfaceService uiService)
+            IGuildsStorage dataStorage, IDiscordAudioService audioService, IUserInterfaceService uiService)
         {
             _logger = logger;
             _client = client;
             _settings = settings.Value;
             _interactions = interactions;
-            _dataStorageService = dataStorageService;
+            _dataStorage = dataStorage;
             _audioService = audioService;
             _UIService = uiService;
 
@@ -58,18 +59,18 @@ namespace DungeonDiscordBot.Services
             _logger.LogInformation("Initializing Discord service...");
 
             _client.JoinedGuild += async guild => {
-                await _dataStorageService.RegisterGuild(guild.Id, guild.Name);
+                await _dataStorage.RegisterGuild(guild.Id, guild.Name);
                 _logger.LogInformation($"Bot has joined a new guild {guild.Name} with id - {guild.Id}");
             };
 
             _client.LeftGuild += async guild => {
-                await _dataStorageService.UnregisterGuild(guild.Id);
+                await _dataStorage.UnregisterGuild(guild.Id);
                 _logger.LogInformation($"Bot has left a guild {guild.Name} with id - {guild.Id}");
             };
 
             _client.UserJoined += async user => {
                 _logger.LogInformation($"User {user.Username}@{user.Id} has joined the guild {user.Guild.Name}@{user.Guild.Id}");
-                Guild guild = await _dataStorageService.GetGuildDataAsync(user.Guild.Id);
+                Guild guild = await _dataStorage.GetGuildAsync(user.Guild.Id);
                 if (guild.WelcomeChannelId is not null) {
                     IChannel channel = await _client.GetChannelAsync(guild.WelcomeChannelId.Value);
                     if (channel is not SocketTextChannel textChannel) {
@@ -91,7 +92,7 @@ namespace DungeonDiscordBot.Services
 
             _client.UserLeft += async (guild, user) => {
                 _logger.LogInformation($"User {user.Username}@{user.Id} has left the guild {guild.Name}@{guild.Id}");
-                Guild guildData = await _dataStorageService.GetGuildDataAsync(guild.Id);
+                Guild guildData = await _dataStorage.GetGuildAsync(guild.Id);
                 if (guildData.RunawayChannelId is not null) {
                     IChannel channel = await _client.GetChannelAsync(guildData.RunawayChannelId.Value);
                     if (channel is not SocketTextChannel textChannel) {
@@ -128,11 +129,11 @@ namespace DungeonDiscordBot.Services
             
             _client.Ready += async () => {
                 //await _interactions.RegisterCommandsGloballyAsync();
-                foreach (Guild guild in await _dataStorageService.GetMusicGuildsAsync()) {
+                foreach (Guild guild in await _dataStorage.GetMusicGuildsAsync()) {
                     await _interactions.RegisterCommandsToGuildAsync(guild.Id);
                     
                     SocketTextChannel musicChannel = await GetChannelAsync(guild.MusicChannelId!.Value);
-                    _dataStorageService.AddMusicControlChannel(guild.Id, musicChannel);
+                    _dataStorage.RegisterMusicChannelImpl(guild.Id, musicChannel);
 
                     _audioService.CreateMusicPlayerMetadata(guild.Id);
                     await _audioService.UpdateSongsQueueAsync(guild.Id);
@@ -160,11 +161,6 @@ namespace DungeonDiscordBot.Services
                 throw new InteractionCommandException(interaction, InteractionCommandError.Unsuccessful,
                     $"Bot was not ready to handle the [{interaction.Id}] interaction");
             }
-        }
-        
-        public async Task HandleInteractionException(Exception exception)
-        {
-            _logger.LogError(exception, "Interaction was executed with an exception");
         }
 
         private async Task<SocketTextChannel> GetChannelAsync(ulong channelId, CancellationToken token = default)

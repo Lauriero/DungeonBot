@@ -18,17 +18,17 @@ public class ConfigModule : BaseInteractionModule<SocketInteractionContext>
 {
     private readonly ILogger<ConfigModule> _logger;
     private readonly IDiscordBotService _botService;
-    private readonly IDataStorageService _dataStorageService;
+    private readonly IDataStorageService _dataStorage;
     private readonly IDiscordAudioService _audioService;
     private readonly IUserInterfaceService _UIService;
 
     public ConfigModule(ILogger<ConfigModule> logger, IDiscordAudioService audioService, IDiscordBotService botService,
-        IDataStorageService dataStorageService, IUserInterfaceService uiService) : base(logger)
+        IDataStorageService dataStorage, IUserInterfaceService uiService) : base(logger)
     {
         _logger = logger;
         _botService = botService;
         _audioService = audioService;
-        _dataStorageService = dataStorageService;
+        _dataStorage = dataStorage;
         _UIService = uiService;
     }
 
@@ -58,7 +58,7 @@ public class ConfigModule : BaseInteractionModule<SocketInteractionContext>
             MusicPlayerMetadata metadata = _audioService.CreateMusicPlayerMetadata(Context.Guild.Id);
             ulong controlMessageId = await _UIService.CreateSongsQueueMessageAsync(Context.Guild.Id, 
                 metadata, channel);
-            await _dataStorageService.RegisterMusicChannel(Context.Guild.Id, channel, controlMessageId);
+            await _dataStorage.Guilds.RegisterMusicChannel(Context.Guild.Id, channel, controlMessageId);
 
             await ModifyOriginalResponseAsync(m => 
                 m.Content = $"Registered channel <#{channel.Id}> as music control channel");
@@ -76,7 +76,7 @@ public class ConfigModule : BaseInteractionModule<SocketInteractionContext>
     {
         await MethodWrapper(async () => {
             await DeferAsync();
-            await _dataStorageService.RegisterWelcomeChannel(Context.Guild.Id, channel.Id);
+            await _dataStorage.Guilds.RegisterWelcomeChannel(Context.Guild.Id, channel.Id);
             await ModifyOriginalResponseAsync(m => 
                 m.Content = $"Registered channel <#{channel.Id}> as a welcome channel");
         });
@@ -93,7 +93,7 @@ public class ConfigModule : BaseInteractionModule<SocketInteractionContext>
     {
         await MethodWrapper(async () => {
             await DeferAsync();
-            await _dataStorageService.RegisterRunawayChannel(Context.Guild.Id, channel.Id);
+            await _dataStorage.Guilds.RegisterRunawayChannel(Context.Guild.Id, channel.Id);
             await ModifyOriginalResponseAsync(m => 
                 m.Content = $"Registered channel <#{channel.Id}> as a runaway channel");
         });

@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore;
 namespace DungeonDiscordBot.Model.Database;
 
 /// <summary>
-/// Represents the collection that user has added to the personal favorites.
+/// Represents the collection that user has added to the personal favoriteCollections.
 /// </summary>
 [Table("favorite_music_collection")]
 public class FavoriteMusicCollection
@@ -17,7 +17,7 @@ public class FavoriteMusicCollection
     public ulong Id { get; set; }
     
     /// <summary>
-    /// Id of the discord user, that added this collection to favorites.
+    /// Id of the discord user, that added this collection to favoriteCollections.
     /// </summary>
     [Required]
     [Column("user_id")]

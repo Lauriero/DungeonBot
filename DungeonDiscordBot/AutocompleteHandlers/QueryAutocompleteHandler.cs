@@ -21,9 +21,9 @@ public class QueryAutocompleteHandler : AutocompleteHandler
         string? query = autocompleteInteraction.Data.Current.Value.ToString();
         
         List<FavoriteMusicCollection> favorites =
-            await _dataStorage.GetUserFavoriteMusicCollectionsAsync(context.User.Id);
+            await _dataStorage.FavoriteCollections.GetAsync(context.User.Id);
 
-        IEnumerable<MusicQueryHistoryEntity> queries = await _dataStorage.GetLastMusicQueries(context.Guild.Id,
+        IEnumerable<MusicQueryHistoryEntity> queries = await _dataStorage.MusicHistory.GetLastMusicQueries(context.Guild.Id,
             25 - favorites.Count);
         
         List<AutocompleteResult> autocompleteResults = favorites
@@ -32,13 +32,14 @@ public class QueryAutocompleteHandler : AutocompleteHandler
 
         autocompleteResults.AddRange(queries
             .Select(q => new AutocompleteResult(q.QueryName, q.QueryValue)));
-
-        IEnumerable<MusicQueryHistoryEntity> results;
+        
         if (!string.IsNullOrEmpty(query)) {
             autocompleteResults.RemoveAll(r =>
                 !r.Name.Contains(query, StringComparison.OrdinalIgnoreCase));
         } 
 
-        return AutocompletionResult.FromSuccess(autocompleteResults.Take(25));
+        return AutocompletionResult.FromSuccess(autocompleteResults
+            .DistinctBy(r => r.Value)
+            .Take(25));
     }
 }

@@ -51,7 +51,7 @@ public class PlaybackHistoryModule : MusicRequesterInteractionModule
                                         "but an interaction within context was not a SocketMessageComponent interaction");
                 }
 
-                _dataStorage.HistoryMessageSelectedOptions.TryRemove(componentInteraction.Message.Id, out string? _);
+                _dataStorage.SelectedOptions.HistoryMessage.TryRemove(componentInteraction.Message.Id, out string? _);
             }
             
             await ModifyOriginalResponseAsync(m => m.ApplyMessageProperties(
@@ -78,7 +78,7 @@ public class PlaybackHistoryModule : MusicRequesterInteractionModule
             }
 
             ulong messageId = componentInteraction.Message.Id;
-            _dataStorage.HistoryMessageSelectedOptions.AddOrUpdate(messageId, 
+            _dataStorage.SelectedOptions.HistoryMessage.AddOrUpdate(messageId, 
                 selectedRoles.First(), 
                 (_, _) => selectedRoles.First());
 
@@ -148,7 +148,7 @@ public class PlaybackHistoryModule : MusicRequesterInteractionModule
                                 "but an interaction within context was not a SocketMessageComponent interaction");
         }
 
-        _dataStorage.HistoryMessageSelectedOptions.TryGetValue(componentInteraction.Message.Id, out string? link);
+        _dataStorage.SelectedOptions.HistoryMessage.TryGetValue(componentInteraction.Message.Id, out string? link);
         return link;
     }  
 

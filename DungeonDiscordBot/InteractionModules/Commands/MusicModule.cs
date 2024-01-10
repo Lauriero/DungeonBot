@@ -25,18 +25,18 @@ public class MusicModule : MusicRequesterInteractionModule
     
     private readonly ILogger<MusicModule> _logger;
     private readonly IDiscordBotService _botService;
-    private readonly IDataStorageService _dataStorageService;
+    private readonly IDataStorageService _dataStorage;
     private readonly IDiscordAudioService _audioService;
     private readonly IUserInterfaceService _UI;
 
     public MusicModule(ILogger<MusicModule> logger, IDiscordAudioService audioService, 
-        IDiscordBotService botService, IDataStorageService dataStorageService, IUserInterfaceService ui)
+        IDiscordBotService botService, IDataStorageService dataStorage, IUserInterfaceService ui)
         : base(logger, ui)
     {
         _logger = logger;
         _botService = botService;
         _audioService = audioService;
-        _dataStorageService = dataStorageService;
+        _dataStorage = dataStorage;
         _UI = ui;
     }
 
@@ -239,7 +239,7 @@ public class MusicModule : MusicRequesterInteractionModule
             await DeferAsync(true);
             await EnsureInMusicChannel();
 
-            Guild guild = await _dataStorageService.GetGuildDataAsync(Context.Guild.Id);
+            Guild guild = await _dataStorage.Guilds.GetGuildAsync(Context.Guild.Id);
             IEnumerable<IMessage> messages = await Context.Channel.GetMessagesAsync(limit)
                 .FlattenAsync();
 
@@ -269,14 +269,14 @@ public class MusicModule : MusicRequesterInteractionModule
             $"Found {collection.Audios.Count} audios");
 
         _audioService.GetMusicPlayerMetadata(Context.Guild.Id).VoiceChannel = targetChannel;
-        await _dataStorageService.RegisterMusicQueryAsync(Context.Guild.Id, collection.Name, link.AbsoluteUri);
+        await _dataStorage.MusicHistory.RegisterMusicQueryAsync(Context.Guild.Id, collection.Name, link.AbsoluteUri);
         await _audioService.AddAudios(Context.Guild.Id, collection.Audios, now);
         await _audioService.PlayQueueAsync(Context.Guild.Id, $"**{collection.Audios.Count()}** tracks from {collection.Name} were added to the queue");
     }
 
     private async Task EnsureInMusicChannel()
     {
-        Guild guild = await _dataStorageService.GetGuildDataAsync(Context.Guild.Id);
+        Guild guild = await _dataStorage.Guilds.GetGuildAsync(Context.Guild.Id);
         if (guild.MusicChannelId is null || guild.MusicMessageId is null) {
             await ModifyOriginalResponseAsync(m =>
                 m.Content = "Music channel is not registered, register it with /register-music-channel");

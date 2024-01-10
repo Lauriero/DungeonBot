@@ -5,6 +5,7 @@ using DungeonDiscordBot.Model.Database;
 using DungeonDiscordBot.Model.MusicProviders;
 using DungeonDiscordBot.MusicProvidersControllers;
 using DungeonDiscordBot.Services.Abstraction;
+using DungeonDiscordBot.Storage.Abstraction;
 using DungeonDiscordBot.Utilities;
 
 using Microsoft.Extensions.Logging;
@@ -19,19 +20,20 @@ namespace DungeonDiscordBot.InteractionModules.Commands;
 public class FavoritesGroupModule : MusicRequesterInteractionModule
 {
     private readonly IUserInterfaceService _UI;
-    private readonly IDataStorageService _dataStorage;
+    private readonly IFavoriteCollectionsStorage _favoritesStorage;
     private readonly ILogger<FavoritesGroupModule> _logger;
     
-    public FavoritesGroupModule(ILogger<FavoritesGroupModule> logger, IUserInterfaceService ui, IDataStorageService dataStorage)
+    public FavoritesGroupModule(ILogger<FavoritesGroupModule> logger, IUserInterfaceService ui, 
+        IFavoriteCollectionsStorage favoritesStorage)
         : base(logger, ui)
     {
         _logger = logger;
         _UI = ui;
-        _dataStorage = dataStorage;
+        _favoritesStorage = favoritesStorage;
     }
 
     [SlashCommand("add", 
-        "Saves the music collection to favorites",
+        "Saves the music collection to favoriteCollections",
         runMode: RunMode.Async)]
     public async Task AddAsync(
         [Summary("query", "Link to a song, playlist or video")]
@@ -59,25 +61,25 @@ public class FavoritesGroupModule : MusicRequesterInteractionModule
             }
 
             string targetCollectionName = name ?? collection.Name;
-            AddFavoriteCollectionResult addResult = await _dataStorage.AddFavoriteMusicCollectionAsync(Context.User.Id,
+            AddFavoriteCollectionResult addResult = await _favoritesStorage.AddAsync(Context.User.Id,
                 targetCollectionName, query);
 
             switch (addResult) {
                 case AddFavoriteCollectionResult.Okay:
                     List<FavoriteMusicCollection> favorites = 
-                        await _dataStorage.GetUserFavoriteMusicCollectionsAsync(Context.User.Id);
+                        await _favoritesStorage.GetAsync(Context.User.Id);
                     await ModifyOriginalResponseAsync(m =>
                         m.Content = $"Marked the music collection [{targetCollectionName}]({query}) as a favorite" +
                                     $" for the user <@{Context.User.Id}>.\n" +
-                                    $"Now user favorites list contains **{favorites.Count}/" +
-                                    $"{_dataStorage.MaxUserFavoritesCount}** collections.");
+                                    $"Now user favoriteCollections list contains **{favorites.Count}/" +
+                                    $"{_favoritesStorage.MaxUserFavoritesCount}** collections.");
                     break;
 
                 case AddFavoriteCollectionResult.OutOfSpace:
                     await ModifyOriginalResponseAsync(m => 
-                        m.Content = $"User <@{Context.User.Id}> has reached the favorites limit of " +
-                                    $"**{_dataStorage.MaxUserFavoritesCount}** collections.\n" +
-                                    $"Remove some favorites to add the new one.");
+                        m.Content = $"User <@{Context.User.Id}> has reached the favoriteCollections limit of " +
+                                    $"**{_favoritesStorage.MaxUserFavoritesCount}** collections.\n" +
+                                    $"Remove some favoriteCollections to add the new one.");
                     break;
 
                 case AddFavoriteCollectionResult.AlreadyAdded:

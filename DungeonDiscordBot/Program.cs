@@ -12,6 +12,8 @@ using DungeonDiscordBot.Model.MusicProviders;
 using DungeonDiscordBot.Services;
 using DungeonDiscordBot.Services.Abstraction;
 using DungeonDiscordBot.Settings;
+using DungeonDiscordBot.Storage;
+using DungeonDiscordBot.Storage.Abstraction;
 
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -72,12 +74,17 @@ namespace DungeonDiscordBot
                         .AddSingleton<DiscordSocketClient>(sp => new DiscordSocketClient(new DiscordSocketConfig {
                             GatewayIntents = GatewayIntents.All
                         }))
+                        
+                        .AddSingleton<IGuildsStorage, GuildsStorage>()
+                        .AddSingleton<IFavoriteCollectionsStorage, FavoriteCollectionsStorage>()
+                        .AddSingleton<IMusicHistoryStorage, MusicHistoryStorage>()
+                        .AddSingleton<ISelectedOptionsStorage, SelectedOptionsStorage>()
+                        .AddSingleton<IDataStorageService, DataStorageService>()
 
                         .AddSingleton<IUserInterfaceService, UserInterfaceService>()
-                        .AddSingleton<IDataStorageService, DataStorageService>()
                         .AddSingleton<IDiscordAudioService, DiscordAudioService>()
                         .AddSingleton<IDiscordBotService, DiscordBotService>()
-
+                        
                         .AddAsyncInitializer<ServicesInitializer>();
                 })
                 .UseConsoleLifetime()

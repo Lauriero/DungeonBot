@@ -292,9 +292,21 @@ public class DiscordAudioService : IDiscordAudioService
                 throw new InvalidOperationException("Error peeking in the audio queue.");
             }
 
+            if (record.AudioUrl is null) {
+                _logger.LogInformation("Fetching the audio url of track {artist} - {title} placed on {url}", 
+                    record.Author, record.Title, record.PublicUrl);
+                await record.UpdateAudioUrlAsync();
+            } else {
+                if (!await HttpExtensions.RemoteFileExists(record.AudioUrl)) {
+                    _logger.LogInformation("Updating the audio url due to the url of track {artist} - {title} " +
+                                           "placed on {url} was not available", 
+                        record.Author, record.Title, record.PublicUrl);
+                    await record.UpdateAudioUrlAsync();
+                }
+            }
+            
             TimeSpan elapsedBeforeStart = metadata.Elapsed;
             Stopwatch watch = new Stopwatch();
-            watch.Start();
 
             if (metadata.ElapsedTimer is not null) {
                 await metadata.ElapsedTimer.DisposeAsync();
@@ -310,20 +322,8 @@ public class DiscordAudioService : IDiscordAudioService
                 (this, watch, elapsedBeforeStart), 
                 dueTime: TimeSpan.FromSeconds(record.Duration.TotalSeconds / _UIService.ProgressBarsCount), 
                 TimeSpan.FromSeconds(record.Duration.TotalSeconds / _UIService.ProgressBarsCount)); // Bars count
-            
-            if (record.AudioUrl is null) {
-                _logger.LogInformation("Fetching the audio url of track {artist} - {title} placed on {url}", 
-                    record.Author, record.Title, record.PublicUrl);
-                await record.UpdateAudioUrlAsync();
-            } else {
-                if (!await HttpExtensions.RemoteFileExists(record.AudioUrl)) {
-                    _logger.LogInformation("Updating the audio url due to the url of track {artist} - {title} " +
-                                           "placed on {url} was not available", 
-                        record.Author, record.Title, record.PublicUrl);
-                    await record.UpdateAudioUrlAsync();
-                }
-            }
-            
+
+            watch.Start();
             using (Process ffmpeg = CreateProcess(record.AudioUrl, metadata.Elapsed))
             await using (Stream output = ffmpeg.StandardOutput.BaseStream)
             await using (AudioOutStream? discord = metadata.AudioClient!.CreatePCMStream(AudioApplication.Mixed)) {
