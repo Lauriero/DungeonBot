@@ -1,8 +1,4 @@
-﻿using System.Diagnostics.CodeAnalysis;
-
-using JetBrains.Annotations;
-
-using Yandex.Music.Api;
+﻿using Yandex.Music.Api;
 using Yandex.Music.Api.Common;
 using Yandex.Music.Api.Models.Track;
 

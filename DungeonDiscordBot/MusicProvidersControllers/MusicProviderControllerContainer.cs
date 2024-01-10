@@ -1,6 +1,5 @@
 ﻿using System.Diagnostics.CodeAnalysis;
 
-using DungeonDiscordBot.Model;
 using DungeonDiscordBot.Model.MusicProviders;
 using DungeonDiscordBot.Model.MusicProviders.Search;
 

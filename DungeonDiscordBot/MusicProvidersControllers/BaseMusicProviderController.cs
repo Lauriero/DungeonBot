@@ -1,5 +1,4 @@
-﻿using DungeonDiscordBot.Model;
-using DungeonDiscordBot.Model.MusicProviders;
+﻿using DungeonDiscordBot.Model.MusicProviders;
 using DungeonDiscordBot.Model.MusicProviders.Search;
 using DungeonDiscordBot.Services.Abstraction;
 

@@ -1,12 +1,10 @@
 ﻿using System.Text.RegularExpressions;
 
-using DungeonDiscordBot.InternalAPIs.SpotifyDown;
 using DungeonDiscordBot.Model;
 using DungeonDiscordBot.Model.MusicProviders;
 using DungeonDiscordBot.Model.MusicProviders.Records;
 using DungeonDiscordBot.Model.MusicProviders.Search;
 using DungeonDiscordBot.Settings;
-using DungeonDiscordBot.Utilities;
 
 using JetBrains.Annotations;
 
@@ -16,7 +14,6 @@ using Microsoft.Extensions.Options;
 using SpotifyAPI.Web;
 
 using YoutubeExplode;
-using YoutubeExplode.Videos.Streams;
 
 namespace DungeonDiscordBot.MusicProvidersControllers;
 
@@ -35,14 +32,12 @@ public class SpotifyMusicProviderController : BaseMusicProviderController
 
     private readonly SpotifyClient _spotifyApi;
     private readonly YoutubeClient _youtubeApi;
-    private readonly ISpotifyDownApi _spotifyDownApi;
     private readonly ILogger<SpotifyMusicProviderController> _logger;
 
-    public SpotifyMusicProviderController(ILogger<SpotifyMusicProviderController> logger, ISpotifyDownApi spotifyDownApi, 
+    public SpotifyMusicProviderController(ILogger<SpotifyMusicProviderController> logger,
         IOptions<AppSettings> options)
     {
         _logger = logger;
-        _spotifyDownApi = spotifyDownApi;
         _youtubeApi = new YoutubeClient();
         
         AppSettings settings = options.Value;
@@ -140,7 +135,7 @@ public class SpotifyMusicProviderController : BaseMusicProviderController
             provider: MusicProvider.Spotify, 
             metadata: metadata,
             audios: tracks.Select(t => (AudioQueueRecord)new SpotifyAudioRecord(
-                _youtubeApi, _spotifyDownApi, t.Id, 
+                _youtubeApi,
                 metadata:                 metadata,
                 author:                   GetTrackArtists(t),
                 title:                    t.Name,

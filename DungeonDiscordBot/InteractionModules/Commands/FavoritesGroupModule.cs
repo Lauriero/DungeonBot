@@ -3,16 +3,11 @@
 using DungeonDiscordBot.Model;
 using DungeonDiscordBot.Model.Database;
 using DungeonDiscordBot.Model.MusicProviders;
-using DungeonDiscordBot.MusicProvidersControllers;
 using DungeonDiscordBot.Services.Abstraction;
 using DungeonDiscordBot.Storage.Abstraction;
 using DungeonDiscordBot.Utilities;
 
 using Microsoft.Extensions.Logging;
-
-using Serilog;
-
-using ILogger = Serilog.ILogger;
 
 namespace DungeonDiscordBot.InteractionModules.Commands;
 

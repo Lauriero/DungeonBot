@@ -1,6 +1,4 @@
-﻿using System.Net;
-
-namespace DungeonDiscordBot.Utilities;
+﻿namespace DungeonDiscordBot.Utilities;
 
 public class HttpExtensions
 {

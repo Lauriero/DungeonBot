@@ -6,8 +6,6 @@ using Discord.Interactions;
 using Discord.WebSocket;
 
 using DungeonDiscordBot.ButtonHandlers;
-using DungeonDiscordBot.InternalAPIs.SpotifyDown.Extensions;
-using DungeonDiscordBot.Model;
 using DungeonDiscordBot.Model.MusicProviders;
 using DungeonDiscordBot.Services;
 using DungeonDiscordBot.Services.Abstraction;
@@ -24,9 +22,6 @@ using Microsoft.Extensions.Options;
 using Serilog;
 
 using VkNet.AudioApi.Extensions;
-using VkNet.Model;
-
-using ILogger = Microsoft.Extensions.Logging.ILogger;
 
 namespace DungeonDiscordBot
 {
@@ -64,7 +59,6 @@ namespace DungeonDiscordBot
                         .AddLogging()
                         .AddTransient<HttpClient>(HttpClientBuilder)
 
-                        .AddSpotifyDown()
                         .AddVkAudioApi()
                         .AddMusicProviders()
                         .AddButtonHandlers()

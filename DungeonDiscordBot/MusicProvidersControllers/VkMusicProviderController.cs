@@ -12,7 +12,6 @@ using Microsoft.Extensions.Logging;
 using VkNet.Abstractions;
 using VkNet.AudioApi;
 using VkNet.AudioApi.Model;
-using VkNet.AudioApi.Model.General;
 using VkNet.Enums.Filters;
 using VkNet.Exception;
 using VkNet.Model;

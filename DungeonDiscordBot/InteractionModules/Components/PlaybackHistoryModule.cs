@@ -1,13 +1,10 @@
-﻿using System.Collections.Concurrent;
-
-using Discord;
+﻿using Discord;
 using Discord.Interactions;
 using Discord.Rest;
 using Discord.WebSocket;
 
 using DungeonDiscordBot.Model;
 using DungeonDiscordBot.Model.MusicProviders;
-using DungeonDiscordBot.MusicProvidersControllers;
 using DungeonDiscordBot.Services.Abstraction;
 using DungeonDiscordBot.Utilities;
 

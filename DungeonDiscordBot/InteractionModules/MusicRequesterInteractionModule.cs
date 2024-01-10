@@ -1,16 +1,11 @@
-﻿using Discord;
-using Discord.Interactions;
+﻿using Discord.Interactions;
 
 using DungeonDiscordBot.Model.MusicProviders;
 using DungeonDiscordBot.MusicProvidersControllers;
 using DungeonDiscordBot.Services.Abstraction;
 using DungeonDiscordBot.Utilities;
 
-using JetBrains.Annotations;
-
 using Microsoft.Extensions.Logging;
-
-using ILogger = Serilog.ILogger;
 
 namespace DungeonDiscordBot.InteractionModules;
 

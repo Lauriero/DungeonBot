@@ -9,8 +9,6 @@ using DungeonDiscordBot.Model.MusicProviders;
 using DungeonDiscordBot.Services.Abstraction;
 using DungeonDiscordBot.Utilities;
 
-using JetBrains.Annotations;
-
 using Microsoft.Extensions.Logging;
 
 namespace DungeonDiscordBot.InteractionModules.Components;

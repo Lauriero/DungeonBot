@@ -4,7 +4,6 @@ using Discord.WebSocket;
 
 using DungeonDiscordBot.Model.Database;
 using DungeonDiscordBot.Services;
-using DungeonDiscordBot.Services.Abstraction;
 using DungeonDiscordBot.Storage.Abstraction;
 
 using Microsoft.EntityFrameworkCore;

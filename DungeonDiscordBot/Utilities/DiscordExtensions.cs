@@ -3,8 +3,6 @@ using Discord.Interactions;
 using Discord.Rest;
 using Discord.WebSocket;
 
-using VkNet.AudioApi.Model;
-
 namespace DungeonDiscordBot.Utilities;
 
 public static class DiscordExtensions

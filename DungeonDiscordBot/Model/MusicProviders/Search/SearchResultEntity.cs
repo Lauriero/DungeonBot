@@ -1,8 +1,4 @@
-﻿using System.Diagnostics.CodeAnalysis;
-
-using Newtonsoft.Json;
-
-namespace DungeonDiscordBot.Model.MusicProviders.Search;
+﻿namespace DungeonDiscordBot.Model.MusicProviders.Search;
 
 public class SearchResultEntity
 {
