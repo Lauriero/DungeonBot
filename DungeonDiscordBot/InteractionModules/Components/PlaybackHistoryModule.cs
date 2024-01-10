@@ -62,12 +62,12 @@ public class PlaybackHistoryModule : MusicRequesterInteractionModule
     }
     
     [ComponentInteraction(TRACK_SELECT_ID, runMode: RunMode.Async)]
-    public async Task TrackSelectAsync(string[] selectedRoles)
+    public async Task TrackSelectAsync(string[] selectedTracks)
     {
         await MethodWrapper(async () => {
             await DeferAsync();
             
-            _logger.LogInformation($"Tracks {string.Join(", ", selectedRoles)} selected with the playback history embed " +
+            _logger.LogInformation($"Tracks {string.Join(", ", selectedTracks)} selected with the playback history embed " +
                                    $"by the {Context.User.Username}@{Context.User.Id} " +
                                    $"in the guild {Context.Guild.Name}@{Context.Guild.Id}");
 
@@ -79,14 +79,14 @@ public class PlaybackHistoryModule : MusicRequesterInteractionModule
 
             ulong messageId = componentInteraction.Message.Id;
             _dataStorage.SelectedOptions.HistoryMessage.AddOrUpdate(messageId, 
-                selectedRoles.First(), 
-                (_, _) => selectedRoles.First());
+                selectedTracks.First(), 
+                (_, _) => selectedTracks.First());
 
             MusicPlayerMetadata metadata = _audioService.GetMusicPlayerMetadata(Context.Guild.Id);
             await ModifyOriginalResponseAsync(m => m.ApplyMessageProperties(
                 _UI.GenerateTrackHistoryMessage(
                     metadata.PreviousTracks, 
-                    selectedRoles.First())));
+                    selectedTracks.First())));
         }, false);
     }
 

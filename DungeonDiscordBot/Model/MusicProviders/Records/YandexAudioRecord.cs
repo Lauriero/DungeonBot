@@ -14,10 +14,11 @@ public class YandexAudioRecord : AudioQueueRecord
     private readonly YandexMusicApi _api;
     private readonly AuthStorage _apiAuth;
     
-    public YandexAudioRecord(YandexMusicApi api, AuthStorage apiAuth, YTrack track, string author, string title, 
+    public YandexAudioRecord(YandexMusicApi api, AuthStorage apiAuth, YTrack track, 
+        MusicCollectionMetadata metadata, string author, string title, 
         Func<Task<string?>> audioThumbnailUriFactory, 
         TimeSpan duration, string? publicUrl) 
-        : base(MusicProvider.Yandex, author, title, audioThumbnailUriFactory, duration, publicUrl)
+        : base(MusicProvider.Yandex, metadata, author, title, audioThumbnailUriFactory, duration, publicUrl)
     {
         _api = api;
         _track = track;

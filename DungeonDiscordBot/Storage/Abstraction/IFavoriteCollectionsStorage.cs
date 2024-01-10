@@ -27,15 +27,26 @@ public interface IFavoriteCollectionsStorage
     /// Returns result code.
     /// <see cref="AddFavoriteCollectionResult.Okay"/> if the collection has been successfully added.
     /// <see cref="AddFavoriteCollectionResult.AlreadyAdded"/> is the collection with the same query
-    /// already exists as a user favoriteCollections.
+    /// already exists as a user favorite collection.
     /// <see cref="AddFavoriteCollectionResult.OutOfSpace"/> if the user has reached a limit of
-    /// <see cref="MaxUserFavoritesCount"/> favoriteCollections collections.
+    /// <see cref="MaxUserFavoritesCount"/> favorite collections.
     /// </returns>
     Task<AddFavoriteCollectionResult> AddAsync(ulong userId, string name, string query,
         CancellationToken token = default);
     
     /// <summary>
-    /// Gets a list of user favoriteCollections music collections.
+    /// Gets a list of user favorite music collections.
     /// </summary>
     Task<List<FavoriteMusicCollection>> GetAsync(ulong userId, CancellationToken token = default);
+    
+    /// <summary>
+    /// Deletes the collection from user favorites.
+    /// </summary>
+    /// <param name="userId">Id of the user that has this collection as favorite.</param>
+    /// <param name="collectionQuery">
+    /// <see cref="FavoriteMusicCollection.Query"/> to determine
+    /// which collection should be removed.
+    /// </param>
+    /// <param name="token"></param>
+    Task DeleteAsync(ulong userId, string collectionQuery, CancellationToken token = default);
 }

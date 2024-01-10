@@ -23,10 +23,12 @@ public class UserInterfaceService : IUserInterfaceService
 {
     public int ProgressBarsCount => 15;
 
+    private readonly II18nService _i18n;
     private readonly IGuildsStorage _dataStorage;
 
-    public UserInterfaceService(IGuildsStorage dataStorage)
+    public UserInterfaceService(IGuildsStorage dataStorage, II18nService i18n)
     {
+        _i18n = i18n;
         _dataStorage = dataStorage;
     }
     
@@ -55,7 +57,7 @@ public class UserInterfaceService : IUserInterfaceService
         MessageProperties musicMessage = await GenerateMusicMessageAsync(musicControlChannel.Guild.Name, playerMetadata);
         try {
             await musicControlChannel.ModifyMessageAsync(guild.MusicMessageId!.Value, m => {
-                m.Content = string.IsNullOrEmpty(message) ? new Optional<string>() : message;
+                m.Content = string.IsNullOrEmpty(message) ? Optional<string>.Unspecified : message;
                 m.Embed = musicMessage.Embed;
                 m.Components = musicMessage.Components;
             }, new RequestOptions {
@@ -148,11 +150,16 @@ public class UserInterfaceService : IUserInterfaceService
         string? selectedCollectionQuery = null)
     {
         StringBuilder descriptionBuilder = new StringBuilder();
+        if (favorites.Count == 0) {
+            descriptionBuilder.Append("```There's no favorite collection for this user, \n" +
+                                      "add some using /favorites add```");
+        }
+        
         for (int i = 0; i < favorites.Count; i++) {
             FavoriteMusicCollection collection = favorites.ElementAt(i);
             descriptionBuilder.AppendLine($"`[{i + 1}]`‎ ‎‏‏‎‎ [{collection.CollectionName}]({collection.Query})");
         }
-        
+
         EmbedBuilder embedBuilder = new EmbedBuilder()
             .WithColor(EmbedColors.Info)
             .WithCurrentTimestamp()
@@ -253,27 +260,35 @@ public class UserInterfaceService : IUserInterfaceService
             }
         }
 
-        string description;
+        StringBuilder descriptionBuilder = new StringBuilder();
         EmbedAuthorBuilder? authorBuilder = null;
         if (playerMetadata.Queue.IsEmpty) {
-            description = "```" +
+            descriptionBuilder.Append("```" +
                           "Queue is empty for now\n" +
                           "You can go and fist your friend\n" +
                           "or play something with /play\n" +
-                          "```";
+                          "```");
         } else {
             if (firstRecord is null) {
                 throw new Exception("Attempt to fetch first record from a non-empty queue was failed");
             }
 
-            authorBuilder = new EmbedAuthorBuilder()
-                .WithName($"Now playing: {firstRecord.Author} - {firstRecord.Title}")
-                .WithIconUrl(firstRecord.Provider.Value.LogoUri);
-
-            if (firstRecord.PublicUrl is not null) {
-                authorBuilder.WithUrl(firstRecord.PublicUrl);
+            if (firstRecord.Collection.Type == MusicCollectionType.Track) {
+                authorBuilder = new EmbedAuthorBuilder()
+                    .WithName($"Now playing: {firstRecord.Author} - {firstRecord.Title}")
+                    .WithIconUrl(firstRecord.Provider.Value.LogoUri);
+             
+                if (firstRecord.PublicUrl is not null) {
+                    authorBuilder.WithUrl(firstRecord.PublicUrl);
+                }
+            } else {
+                authorBuilder = new EmbedAuthorBuilder()
+                    .WithName($"Playing tracks from the {_i18n.GetMusicCollectionTypeName(firstRecord.Collection.Type)} " +
+                              $"{firstRecord.Collection.Name}")
+                    .WithUrl(firstRecord.Collection.PublicUrl)
+                    .WithIconUrl(firstRecord.Provider.Value.LogoUri);
             }
-            
+
             TimeSpan elapsed = playerMetadata.Elapsed;
             TimeSpan total = firstRecord.Duration;
 
@@ -326,12 +341,21 @@ public class UserInterfaceService : IUserInterfaceService
                 playerBarsBuilder.Append(Emojis.PLAYER_BAR_BG_RIGHT_CORNER);
             }
 
-            description =
-                $"{elapsed:mm\\:ss} ‎ ‎‏‏‎‎ " +
-                $"{playerBarsBuilder} ‎ ‎‏‏‎‎ " +
-                $"{total:mm\\:ss}\n\n" +
-                nextSongsList;
+            if (firstRecord.Collection.Type != MusicCollectionType.Track) {
+                if (firstRecord.PublicUrl is not null) {
+                    descriptionBuilder.AppendLine($"**Now playing:** ‎ ‎‏‏‎‎" +
+                                                  $"**[{firstRecord.Author} - {firstRecord.Title}]" +
+                                                  $"({firstRecord.PublicUrl})**");
+                } else {
+                    descriptionBuilder.AppendLine($"**Now playing:** ‎ ‎‏‏‎‎" +
+                                                  $"{firstRecord.Author} - {firstRecord.Title}");
+                }
+            }
 
+            descriptionBuilder.Append($"{elapsed:mm\\:ss} ‎ ‎‏‏‎‎ ");
+            descriptionBuilder.Append($"{playerBarsBuilder} ‎ ‎‏‏‎‎ ");
+            descriptionBuilder.AppendLine($"{total:mm\\:ss}\n");
+            descriptionBuilder.Append(nextSongsList);
         }
 
         int pagesCount = (int) Math.Ceiling((playerMetadata.Queue.Count - 1) / 10.0);
@@ -343,8 +367,7 @@ public class UserInterfaceService : IUserInterfaceService
         if (firstRecord is not null) {
             thumbnailUrl = await firstRecord.AudioThumbnailUrl.Value ?? thumbnailUrl;
         }
-        
-        
+
         EmbedBuilder embedBuilder = new EmbedBuilder()
             .WithColor(embedColor)
             .WithTimestamp(DateTimeOffset.Now)
@@ -352,7 +375,7 @@ public class UserInterfaceService : IUserInterfaceService
             .WithFooter($"Page {pageNumber}/{pagesCount}‏‏‎ ‎‏‏‎‎ • ‏‏‎‏‏‎ {playerMetadata.Queue.Count} songs",
                 "http://larc.tech/content/dungeon-bot/up-and-down.png")
             .WithThumbnailUrl(thumbnailUrl)
-            .WithDescription(description);
+            .WithDescription(descriptionBuilder.ToString());
 
         if (authorBuilder is not null) {
             embedBuilder.WithAuthor(authorBuilder);

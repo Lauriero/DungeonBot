@@ -81,6 +81,7 @@ namespace DungeonDiscordBot
                         .AddSingleton<ISelectedOptionsStorage, SelectedOptionsStorage>()
                         .AddSingleton<IDataStorageService, DataStorageService>()
 
+                        .AddSingleton<II18nService, I18nService>() 
                         .AddSingleton<IUserInterfaceService, UserInterfaceService>()
                         .AddSingleton<IDiscordAudioService, DiscordAudioService>()
                         .AddSingleton<IDiscordBotService, DiscordBotService>()

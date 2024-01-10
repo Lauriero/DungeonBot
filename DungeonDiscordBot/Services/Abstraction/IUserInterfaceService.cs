@@ -4,6 +4,7 @@ using Discord;
 using Discord.WebSocket;
 
 using DungeonDiscordBot.Model;
+using DungeonDiscordBot.Model.Database;
 using DungeonDiscordBot.MusicProvidersControllers;
 
 namespace DungeonDiscordBot.Services.Abstraction;
@@ -32,6 +33,9 @@ public interface IUserInterfaceService
 
     MessageProperties GenerateTrackHistoryMessage(ConcurrentStack<AudioQueueRecord> previousTracks, 
         string? selectedTrackUri = null);
+
+    public MessageProperties GenerateUserFavoritesMessage(List<FavoriteMusicCollection> favorites,
+        string? selectedCollectionQuery = null);
     
     MessageProperties GenerateMissingPermissionsMessage(
         string description,

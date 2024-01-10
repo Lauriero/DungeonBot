@@ -78,6 +78,7 @@ public class VkMusicProviderController : BaseMusicProviderController
         long? playlistId;
         string accessToken;
         List<Audio> audios = new List<Audio>();
+        MusicCollectionMetadata metadata = new MusicCollectionMetadata { PublicUrl = link.AbsoluteUri };
         if (songMatch.Success) {
             userId = Convert.ToInt64(songMatch.Groups[1].Value);
             long audioId = Convert.ToInt64(songMatch.Groups[2].Value);
@@ -100,23 +101,11 @@ public class VkMusicProviderController : BaseMusicProviderController
                 return MusicCollectionResponse.FromError(MusicProvider.VK, MusicResponseErrorType.PermissionDenied, 
                     "Access to audio is denied");
             }
-            
-            return MusicCollectionResponse.FromSuccess(MusicProvider.VK, 
-                name: $"{firstAudio.Artist} - {firstAudio.Title}",
-                audios: new AudioQueueRecord[] {
-                    new VkAudioRecord(
-                        _audioApi, firstAudio, 
-                        author:            firstAudio.Artist, 
-                        title:             firstAudio.Title,
-                        audioThumbnailUri: firstAudio.Album?.Thumb?.Photo135,
-                        duration:          TimeSpan.FromSeconds(firstAudio.Duration),
-                        publicUrl:         $"https://vk.com/audio{firstAudio.OwnerId}_{firstAudio.Id}_{firstAudio.AccessKey}")
-                }
-            );
-        }
 
-        string collectionName = "";
-        if (playlistMatch.Success) {
+            metadata.Name = $"{firstAudio.Artist} - {firstAudio.Title}";
+            metadata.Type = MusicCollectionType.Track;
+            audios.Add(firstAudio);
+        } else if (playlistMatch.Success) {
             await onPlaylistMatch(playlistMatch);
         } else if (sovaPlaylistMatch.Success) {
             await onPlaylistMatch(sovaPlaylistMatch);
@@ -139,7 +128,8 @@ public class VkMusicProviderController : BaseMusicProviderController
             }
 
             Audio firstAudio = audios.First();
-            collectionName = $"{firstAudio.Artist} - {firstAudio.Album!.Title}";
+            metadata.Name = $"{firstAudio.Artist} - {firstAudio.Album!.Title}";
+            metadata.Type = MusicCollectionType.Album;
         } else {
             return MusicCollectionResponse.FromError(MusicProvider.VK, MusicResponseErrorType.LinkNotSupported, 
                 $"Current provider can't handle urls like {url}");
@@ -158,7 +148,7 @@ public class VkMusicProviderController : BaseMusicProviderController
 
             if (playlist.OwnerId > 0) {
                 User playlistOwner = (await _audioApi.GetUserAsync(playlist.OwnerId))!;
-                collectionName = $"{playlistOwner.FirstName} {playlistOwner.LastName} - {playlist.Title}";
+                metadata.Name = $"{playlistOwner.FirstName} {playlistOwner.LastName} - {playlist.Title}";
             } else {
                 long groupId = -1 * userId;
                 Group? group = await _audioApi.GetGroupByIdAsync(
@@ -170,9 +160,10 @@ public class VkMusicProviderController : BaseMusicProviderController
                     return;
                 }
                 
-                collectionName = $"{group.Name} - {playlist.Title}";
+                metadata.Name = $"{group.Name} - {playlist.Title}";
             }
 
+            metadata.Type = MusicCollectionType.Playlist;
             audios.AddRange(await _audioApi.AudioGetAsync(
                 playlistId.Value, 
                 userId, 
@@ -196,11 +187,12 @@ public class VkMusicProviderController : BaseMusicProviderController
             
             records.Add(new VkAudioRecord(
                 _audioApi, audio, 
-                author:            audio.Artist, 
-                title:             audio.Title,
-                audioThumbnailUri: audio.Album?.Thumb?.Photo135,
-                duration:          TimeSpan.FromSeconds(audio.Duration),
-                publicUrl:         $"https://vk.com/audio{audio.OwnerId}_{audio.Id}_{audio.AccessKey}"));
+                metadata: metadata,
+                author:             audio.Artist, 
+                title:              audio.Title,
+                audioThumbnailUri:  audio.Album?.Thumb?.Photo135,
+                duration:           TimeSpan.FromSeconds(audio.Duration),
+                publicUrl:          $"https://vk.com/audio{audio.OwnerId}_{audio.Id}_{audio.AccessKey}"));
             addedCount++;
         }
         
@@ -210,7 +202,7 @@ public class VkMusicProviderController : BaseMusicProviderController
                     "There's nothing in the requested album");
         }
         
-        return MusicCollectionResponse.FromSuccess(MusicProvider.VK, collectionName, records);
+        return MusicCollectionResponse.FromSuccess(MusicProvider.VK, metadata, records);
     }
 
     public override async Task<MusicSearchResult> SearchAsync(string query, MusicCollectionType targetCollectionType, int? count = null)

@@ -13,6 +13,11 @@ public abstract class AudioQueueRecord
     public MusicProvider Provider { get; }
     
     /// <summary>
+    /// Contains data about the collection this track belongs to.
+    /// </summary>
+    public MusicCollectionMetadata Collection { get; }
+    
+    /// <summary>
     /// Uri to the audio in the public resource.
     /// </summary>
     public string? PublicUrl { get; }
@@ -31,10 +36,11 @@ public abstract class AudioQueueRecord
     
     public AsyncLazy<string?> AudioThumbnailUrl { get; }
     
-    protected AudioQueueRecord(MusicProvider provider, string author, string title,
+    protected AudioQueueRecord(MusicProvider provider, MusicCollectionMetadata metadata, string author, string title,
         Func<Task<string?>> audioThumbnailUriFactory, TimeSpan duration, string? publicUrl)
     {
         Provider = provider;
+        Collection = metadata;
         Author = author;
         Title = title;
         Duration = duration;

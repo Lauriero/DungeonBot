@@ -67,11 +67,11 @@ public class QueueButtonHandler : IButtonHandler
             
             case QUEUE_TOGGLE_STATE_BUTTON_ID:
                 if (metadata.State is MusicPlayerState.Paused or MusicPlayerState.Stopped) {
-                    await component.ModifyOriginalResponseAsync(m => m.Content = "Play request received");
                     await _audioService.PlayQueueAsync(guild.Id);
+                    await component.ModifyOriginalResponseAsync(m => m.Content = "Play request received");
                 } else {
-                    await component.ModifyOriginalResponseAsync(m => m.Content = "Pause request received");
                     await _audioService.PauseQueueAsync(guild.Id);
+                    await component.ModifyOriginalResponseAsync(m => m.Content = "Pause request received");
                 }
 
                 break;

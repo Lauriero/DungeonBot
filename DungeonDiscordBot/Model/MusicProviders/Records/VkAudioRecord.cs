@@ -11,9 +11,9 @@ public class VkAudioRecord : AudioQueueRecord
     private readonly IVkAudioApi _api;
     
     public VkAudioRecord(
-        IVkAudioApi api, Audio vkAudio, string author, string title,
+        IVkAudioApi api, Audio vkAudio, MusicCollectionMetadata metadata, string author, string title,
         string? audioThumbnailUri, TimeSpan duration, string? publicUrl) 
-        : base(MusicProvider.Spotify, author, title, async () => audioThumbnailUri, duration, publicUrl)
+        : base(MusicProvider.Spotify, metadata, author, title, async () => audioThumbnailUri, duration, publicUrl)
     {
         _api = api;
         _vkAudio = vkAudio;

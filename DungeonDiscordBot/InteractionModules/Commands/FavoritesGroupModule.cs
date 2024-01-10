@@ -20,20 +20,22 @@ namespace DungeonDiscordBot.InteractionModules.Commands;
 public class FavoritesGroupModule : MusicRequesterInteractionModule
 {
     private readonly IUserInterfaceService _UI;
-    private readonly IFavoriteCollectionsStorage _favoritesStorage;
+    private readonly IDiscordAudioService _audioService;
     private readonly ILogger<FavoritesGroupModule> _logger;
+    private readonly IFavoriteCollectionsStorage _favoritesStorage;
     
     public FavoritesGroupModule(ILogger<FavoritesGroupModule> logger, IUserInterfaceService ui, 
-        IFavoriteCollectionsStorage favoritesStorage)
+        IFavoriteCollectionsStorage favoritesStorage, IDiscordAudioService audioService)
         : base(logger, ui)
     {
         _logger = logger;
         _UI = ui;
         _favoritesStorage = favoritesStorage;
+        _audioService = audioService;
     }
 
     [SlashCommand("add", 
-        "Saves the music collection to favoriteCollections",
+        "Saves the music collection to favorites",
         runMode: RunMode.Async)]
     public async Task AddAsync(
         [Summary("query", "Link to a song, playlist or video")]
@@ -60,26 +62,98 @@ public class FavoritesGroupModule : MusicRequesterInteractionModule
                 return;
             }
 
-            string targetCollectionName = name ?? collection.Name;
-            AddFavoriteCollectionResult addResult = await _favoritesStorage.AddAsync(Context.User.Id,
-                targetCollectionName, query);
+            string targetCollectionName = name ?? collection.Metadata.Name;
+            await AddFavoriteCollectionAsync(targetCollectionName, query);
+        }, false);
+    }
+
+    [SlashCommand("add-current-track", 
+        "Adds the playing track to the favorites",
+        runMode: RunMode.Async)]
+    public async Task AddCurrentTrackAsync()
+    {
+        await MethodWrapper(async () => {
+            await DeferAsync(true);
+
+            MusicPlayerMetadata metadata = _audioService.GetMusicPlayerMetadata(Context.Guild.Id);
+            if (metadata.State == MusicPlayerState.Stopped || metadata.Queue.IsEmpty) {
+                await ModifyOriginalResponseAsync(m =>
+                    m.Content = "No tracks are playing now, start the queue to add current track to favorites");
+                return;
+            }
+
+            if (!metadata.Queue.TryPeek(out AudioQueueRecord? current)) {
+                throw new InvalidOperationException("Unable to get the first track of the queue");
+            }
+
+            if (current.PublicUrl is null) {
+                await ModifyOriginalResponseAsync(m =>
+                    m.Content = "Current track has no public url, so it is impossible to mark it as favorite");
+                return;
+            }
+
+            await AddFavoriteCollectionAsync($"{current.Author} - {current.Title}", current.PublicUrl);
+        }, false);
+    }
+   
+    [SlashCommand("add-current-collection", 
+        "Adds the playing collection to the favorites",
+        runMode: RunMode.Async)]
+    public async Task AddCurrentCollectionAsync()
+    {
+        await MethodWrapper(async () => {
+            await DeferAsync(true);
+
+            MusicPlayerMetadata metadata = _audioService.GetMusicPlayerMetadata(Context.Guild.Id);
+            if (metadata.State == MusicPlayerState.Stopped || metadata.Queue.IsEmpty) {
+                await ModifyOriginalResponseAsync(m =>
+                    m.Content = "No tracks are playing now, start the queue to add current track to favorites");
+                return;
+            }
+
+            if (!metadata.Queue.TryPeek(out AudioQueueRecord? current)) {
+                throw new InvalidOperationException("Unable to get the first track of the queue");
+            }
+
+            await AddFavoriteCollectionAsync(current.Collection.Name, current.Collection.PublicUrl);
+        }, false);
+    }
+
+    [SlashCommand("list", 
+        "Shows favorite tracks for this user",
+        runMode: RunMode.Async)]
+    public async Task ListAsync()
+    {
+        await MethodWrapper(async () => {
+            await DeferAsync(ephemeral: true);
+            
+            List<FavoriteMusicCollection> favorites = await _favoritesStorage.GetAsync(Context.User.Id);
+            await ModifyOriginalResponseAsync(
+                m => m.ApplyMessageProperties(_UI.GenerateUserFavoritesMessage(favorites)));
+        }, false);
+    }
+
+    private async Task AddFavoriteCollectionAsync(string name, string query)
+    {
+        AddFavoriteCollectionResult addResult = await _favoritesStorage.AddAsync(Context.User.Id,
+                name, query);
 
             switch (addResult) {
                 case AddFavoriteCollectionResult.Okay:
                     List<FavoriteMusicCollection> favorites = 
                         await _favoritesStorage.GetAsync(Context.User.Id);
                     await ModifyOriginalResponseAsync(m =>
-                        m.Content = $"Marked the music collection [{targetCollectionName}]({query}) as a favorite" +
+                        m.Content = $"Marked the music collection [{name}]({query}) as a favorite" +
                                     $" for the user <@{Context.User.Id}>.\n" +
-                                    $"Now user favoriteCollections list contains **{favorites.Count}/" +
+                                    $"Now user favorites list contains **{favorites.Count}/" +
                                     $"{_favoritesStorage.MaxUserFavoritesCount}** collections.");
                     break;
 
                 case AddFavoriteCollectionResult.OutOfSpace:
                     await ModifyOriginalResponseAsync(m => 
-                        m.Content = $"User <@{Context.User.Id}> has reached the favoriteCollections limit of " +
+                        m.Content = $"User <@{Context.User.Id}> has reached the favorites limit of " +
                                     $"**{_favoritesStorage.MaxUserFavoritesCount}** collections.\n" +
-                                    $"Remove some favoriteCollections to add the new one.");
+                                    $"Remove some favorite collections to add the new one.");
                     break;
 
                 case AddFavoriteCollectionResult.AlreadyAdded:
@@ -95,6 +169,5 @@ public class FavoritesGroupModule : MusicRequesterInteractionModule
                     throw new ArgumentOutOfRangeException(nameof(addResult),
                         "Invalid add result");
             }
-        }, false);
     }
 }

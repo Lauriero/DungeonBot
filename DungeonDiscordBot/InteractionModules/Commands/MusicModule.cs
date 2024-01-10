@@ -27,10 +27,11 @@ public class MusicModule : MusicRequesterInteractionModule
     private readonly IDiscordBotService _botService;
     private readonly IDataStorageService _dataStorage;
     private readonly IDiscordAudioService _audioService;
+    private readonly II18nService _i18n;
     private readonly IUserInterfaceService _UI;
 
     public MusicModule(ILogger<MusicModule> logger, IDiscordAudioService audioService, 
-        IDiscordBotService botService, IDataStorageService dataStorage, IUserInterfaceService ui)
+        IDiscordBotService botService, IDataStorageService dataStorage, IUserInterfaceService ui, II18nService i18N)
         : base(logger, ui)
     {
         _logger = logger;
@@ -38,6 +39,7 @@ public class MusicModule : MusicRequesterInteractionModule
         _audioService = audioService;
         _dataStorage = dataStorage;
         _UI = ui;
+        _i18n = i18N;
     }
 
     [SlashCommand(
@@ -269,9 +271,12 @@ public class MusicModule : MusicRequesterInteractionModule
             $"Found {collection.Audios.Count} audios");
 
         _audioService.GetMusicPlayerMetadata(Context.Guild.Id).VoiceChannel = targetChannel;
-        await _dataStorage.MusicHistory.RegisterMusicQueryAsync(Context.Guild.Id, collection.Name, link.AbsoluteUri);
+        await _dataStorage.MusicHistory.RegisterMusicQueryAsync(Context.Guild.Id, collection.Metadata.Name, link.AbsoluteUri);
         await _audioService.AddAudios(Context.Guild.Id, collection.Audios, now);
-        await _audioService.PlayQueueAsync(Context.Guild.Id, $"**{collection.Audios.Count()}** tracks from {collection.Name} were added to the queue");
+        await _audioService.PlayQueueAsync(Context.Guild.Id, 
+            $"<@{Context.User.Id}> queued up **{collection.Audios.Count}** tracks from " +
+            $"the {_i18n.GetMusicCollectionTypeName(collection.Metadata.Type)} " + 
+            $"**[{collection.Metadata.Name}]({collection.Metadata.PublicUrl})**");
     }
 
     private async Task EnsureInMusicChannel()

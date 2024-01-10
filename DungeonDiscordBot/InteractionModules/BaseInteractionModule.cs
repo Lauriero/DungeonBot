@@ -25,6 +25,7 @@ public class BaseInteractionModule<TContext> : InteractionModuleBase<TContext>
             }
         } catch (Exception e) {
             _logger.LogError(e, "Interaction was executed with an exception");
+            await ModifyOriginalResponseAsync(m => m.Content = "Internal server error occurred");
         }
     }    
 }

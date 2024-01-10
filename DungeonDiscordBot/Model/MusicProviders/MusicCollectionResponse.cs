@@ -12,7 +12,7 @@ public class MusicCollectionResponse
     /// <summary>
     /// Specifies whether the response was successful.
     /// </summary>
-    [MemberNotNullWhen(false, nameof(Name))]
+    [MemberNotNullWhen(false, nameof(Metadata))]
     [MemberNotNullWhen(true, nameof(ErrorType))]
     [MemberNotNullWhen(true, nameof(ErrorMessage))]
     public bool IsError { get; } 
@@ -23,13 +23,9 @@ public class MusicCollectionResponse
     public MusicProvider Provider { get; }
     
     /// <summary>
-    /// General name of the collection.
-    /// May be the song full name (artist - song),
-    /// album name (artist - album),
-    /// playlist name, etc...
-    /// Or null, if <see cref="IsError"/> is true. 
+    /// Contains fetched collection data.
     /// </summary>
-    public string? Name { get; }
+    public MusicCollectionMetadata? Metadata { get; }
 
     /// <summary>
     /// Array of audios that were fetched.
@@ -48,10 +44,10 @@ public class MusicCollectionResponse
     /// </summary>
     public string? ErrorMessage { get; }
 
-    public static MusicCollectionResponse FromSuccess(MusicProvider provider, string name,
+    public static MusicCollectionResponse FromSuccess(MusicProvider provider, MusicCollectionMetadata? metadata,
         IList<AudioQueueRecord> audios)
     {
-        return new MusicCollectionResponse(provider, name, audios, null, null);
+        return new MusicCollectionResponse(provider, metadata, audios, null, null);
     }
 
     public static MusicCollectionResponse FromError(MusicProvider provider, MusicResponseErrorType errorType, string errorMessage)
@@ -59,11 +55,11 @@ public class MusicCollectionResponse
         return new MusicCollectionResponse(provider, null, Array.Empty<AudioQueueRecord>(), errorType, errorMessage);
     }
 
-    private MusicCollectionResponse(MusicProvider provider, string? name, IList<AudioQueueRecord> audios,
+    private MusicCollectionResponse(MusicProvider provider, MusicCollectionMetadata? metadata, IList<AudioQueueRecord> audios,
         MusicResponseErrorType? errorType, string? errorMessage)
     {
         Provider = provider;
-        Name = name;
+        Metadata = metadata;
         Audios = audios;
         IsError = errorType is not null;
         ErrorType = errorType;

@@ -67,13 +67,15 @@ public class YandexMusicProviderController : BaseMusicProviderController
 
         IEnumerable<YTrack> tracks;
         string collectionName;
+        MusicCollectionMetadata metadata = new MusicCollectionMetadata {PublicUrl = link.AbsoluteUri};
         try {
             if (userPlaylistMatch.Success) {
                 var playlist = await _api.Playlist.GetAsync(_apiAuth, userPlaylistMatch.Groups[1].Value,
                     userPlaylistMatch.Groups[2].Value);
 
                 tracks = playlist.Result.Tracks.Select(tc => tc.Track);
-                collectionName = $"{playlist.Result.Owner.Name} - {playlist.Result.Title}";
+                metadata.Name = $"{playlist.Result.Owner.Name} - {playlist.Result.Title}";
+                metadata.Type = MusicCollectionType.Playlist;
             } else if (trackMatch.Success) {
                 var track = await _api.Track.GetAsync(_apiAuth,
                     $"{trackMatch.Groups[2].Value}:{trackMatch.Groups[1].Value}");
@@ -86,13 +88,15 @@ public class YandexMusicProviderController : BaseMusicProviderController
 
                 YTrack firstTrack = tracks.First();
                 string artists = string.Join(", ", firstTrack.Artists.Select(a => a.Name));
-                collectionName = $"{artists} - {firstTrack.Title}";
+                metadata.Name = $"{artists} - {firstTrack.Title}";
+                metadata.Type = MusicCollectionType.Track;
             } else if (albumMatch.Success) {
                 var album = await _api.Album.GetAsync(_apiAuth, albumMatch.Groups[1].Value);
                 tracks = album.Result.Volumes.SelectMany(t => t);
 
                 string artists = string.Join(", ", album.Result.Artists.Select(a => a.Name));
-                collectionName = $"{artists} - {album.Result.Title}";
+                metadata.Name = $"{artists} - {album.Result.Title}";
+                metadata.Type = MusicCollectionType.Album;
             } else if (artistMatch.Success) {
                 var artist = await _api.Artist.GetAllTracksAsync(_apiAuth,
                     artistMatch.Groups[1].Value);
@@ -101,7 +105,8 @@ public class YandexMusicProviderController : BaseMusicProviderController
 
                 YResponse<YArtistBriefInfo> artistInfo =
                     await _api.Artist.GetAsync(_apiAuth, artistMatch.Groups[1].Value);
-                collectionName = $"{artistInfo.Result.Artist.Name} - All tracks";
+                metadata.Name = $"{artistInfo.Result.Artist.Name} - All tracks";
+                metadata.Type = MusicCollectionType.Artist;
             } else {
                 return MusicCollectionResponse.FromError(MusicProvider.Yandex, MusicResponseErrorType.LinkNotSupported,
                     $"Current provider can't handle urls like {url}");
@@ -125,6 +130,7 @@ public class YandexMusicProviderController : BaseMusicProviderController
             
             records.Add(new YandexAudioRecord(
                 _api, _apiAuth, track,
+                metadata:       metadata,
                 author:                   track.Artists.First().Name, 
                 title:                    track.Title,
                 duration:                 TimeSpan.FromMilliseconds(track.DurationMs),
@@ -134,7 +140,7 @@ public class YandexMusicProviderController : BaseMusicProviderController
                 publicUrl:                $"https://music.yandex.ru/album/{track.Albums[0].Id}/track/{track.Id}"));
         }
 
-        return MusicCollectionResponse.FromSuccess(MusicProvider.Yandex, collectionName, records);
+        return MusicCollectionResponse.FromSuccess(MusicProvider.Yandex, metadata, records);
     }
 
     public override async Task<MusicSearchResult> SearchAsync(string query, MusicCollectionType targetCollectionType, int? count = null)

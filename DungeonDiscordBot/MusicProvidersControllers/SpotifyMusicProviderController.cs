@@ -77,14 +77,16 @@ public class SpotifyMusicProviderController : BaseMusicProviderController
         Match playlistMatch = playlistRegex.Match(url);
         Match artistMatch = artistRegex.Match(url);
         
-        string collectionName;
         List<FullTrack> tracks = new List<FullTrack>();
+        MusicCollectionMetadata metadata = new MusicCollectionMetadata {PublicUrl = link.AbsoluteUri};
         try {
             if (songMatch.Success) {
                 string trackId = songMatch.Groups[1].Value;
 
                 FullTrack track = await _spotifyApi.Tracks.Get(trackId);
-                collectionName = $"{GetTrackArtists(track)} - {track.Name}";
+                metadata.Name = $"{GetTrackArtists(track)} - {track.Name}";
+                metadata.Type = MusicCollectionType.Track;
+                
                 tracks.Add(track);
             } else if (albumMatch.Success) {
                 string albumId = albumMatch.Groups[1].Value;
@@ -94,7 +96,9 @@ public class SpotifyMusicProviderController : BaseMusicProviderController
                     new TracksRequest(album.Tracks.Items!.Select(t => t.Id).ToList()));
 
                 string artists = string.Join(", ", album.Artists.Select(a => a.Name));
-                collectionName = $"{artists} - {album.Name}";
+                metadata.Name = $"{artists} - {album.Name}";
+                metadata.Type = MusicCollectionType.Album;
+                
                 tracks.AddRange(albumTracks.Tracks);
             } else if (playlistMatch.Success) {
                 string playlistId = playlistMatch.Groups[1].Value;
@@ -106,15 +110,17 @@ public class SpotifyMusicProviderController : BaseMusicProviderController
                     }
                 }
 
-                collectionName = $"{playlist.Owner!.DisplayName} - {playlist.Name}";
+                metadata.Name = $"{playlist.Owner!.DisplayName} - {playlist.Name}";
+                metadata.Type = MusicCollectionType.Playlist;
             } else if (artistMatch.Success) {
                 string artistId = artistMatch.Groups[1].Value;
 
                 FullArtist artist = await _spotifyApi.Artists.Get(artistId);
                 ArtistsTopTracksResponse topTracksResponse =
                     await _spotifyApi.Artists.GetTopTracks(artistId, new ArtistsTopTracksRequest("DE"));
-
-                collectionName = $"{artist.Name} - Popular";
+                
+                metadata.Name = $"{artist.Name} - Popular";
+                metadata.Type = MusicCollectionType.Artist;
                 tracks.AddRange(topTracksResponse.Tracks);
             } else {
                 return MusicCollectionResponse.FromError(MusicProvider.Spotify, MusicResponseErrorType.LinkNotSupported,
@@ -132,14 +138,15 @@ public class SpotifyMusicProviderController : BaseMusicProviderController
         
         return MusicCollectionResponse.FromSuccess(
             provider: MusicProvider.Spotify, 
-            name: collectionName,
+            metadata: metadata,
             audios: tracks.Select(t => (AudioQueueRecord)new SpotifyAudioRecord(
                 _youtubeApi, _spotifyDownApi, t.Id, 
-                author: GetTrackArtists(t),
-                title: t.Name,
+                metadata:                 metadata,
+                author:                   GetTrackArtists(t),
+                title:                    t.Name,
                 audioThumbnailUriFactory: async () => t.Album.Images.FirstOrDefault()?.Url,
-                duration: TimeSpan.FromMilliseconds(t.DurationMs),
-                publicUrl: $"https://open.spotify.com/track/{t.Id}")).ToList());
+                duration:                 TimeSpan.FromMilliseconds(t.DurationMs),
+                publicUrl:                $"https://open.spotify.com/track/{t.Id}")).ToList());
     }
 
     public override async Task<MusicSearchResult> SearchAsync(string query, MusicCollectionType targetCollectionType, int? count = null)
@@ -211,18 +218,6 @@ public class SpotifyMusicProviderController : BaseMusicProviderController
         return new MusicSearchResult(MusicProvider.Spotify, results);
     }
 
-    private async Task<string> GetTrackSource(FullTrack track)
-    {
-        string? youtubeId = await _spotifyDownApi.GetYoutubeIdAsync(track.Id);
-        if (youtubeId is null) {
-            throw new ArgumentException("Corresponding YouTube video ID was not found", nameof(track));
-        }
-
-        StreamManifest manifest = await _youtubeApi.Videos.Streams
-            .GetManifestAsync($"https://youtube.com/watch?v={youtubeId}");
-        return manifest.GetAudioOnlyStreams().GetWithHighestBitrate().Url;
-    }
-    
     [Pure]
     private static string GetTrackArtists(FullTrack track)
     {

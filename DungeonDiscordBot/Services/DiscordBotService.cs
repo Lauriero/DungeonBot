@@ -136,7 +136,7 @@ namespace DungeonDiscordBot.Services
                     _dataStorage.RegisterMusicChannelImpl(guild.Id, musicChannel);
 
                     _audioService.CreateMusicPlayerMetadata(guild.Id);
-                    await _audioService.UpdateSongsQueueAsync(guild.Id);
+                    await _audioService.UpdateSongsQueueAsync(guild.Id, "Queue was cleared");
                 }
                 
                 _logger.LogInformation("Bot is ready");

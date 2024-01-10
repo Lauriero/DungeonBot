@@ -52,4 +52,13 @@ public class FavoriteCollectionsStorage : IFavoriteCollectionsStorage
             .OrderByDescending(c => c.CreatedAt)
             .ToListAsync(token);
     }
+
+    /// <inheritdoc />
+    public async Task DeleteAsync(ulong userId, string collectionQuery, CancellationToken token = default)
+    {
+        await _dataContext.FavoriteCollections
+            .Where(c => c.UserId == userId && c.Query == collectionQuery)
+            .ExecuteDeleteAsync(token);
+        await _dataContext.SaveChangesAsync(token);
+    }
 }

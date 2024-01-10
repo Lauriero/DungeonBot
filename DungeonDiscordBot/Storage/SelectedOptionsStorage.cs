@@ -11,11 +11,11 @@ public class SelectedOptionsStorage : ISelectedOptionsStorage
     public ConcurrentDictionary<ulong, string> HistoryMessage { get; }
     
     /// <inheritdoc />
-    public ConcurrentDictionary<ulong, string> FavoritesMessageSelectedOptions { get; }
+    public ConcurrentDictionary<ulong, string> FavoritesMessage { get; }
 
     public SelectedOptionsStorage()
     {
         HistoryMessage = new ConcurrentDictionary<ulong, string>();
-        FavoritesMessageSelectedOptions = new ConcurrentDictionary<ulong, string>();
+        FavoritesMessage = new ConcurrentDictionary<ulong, string>();
     }
 }

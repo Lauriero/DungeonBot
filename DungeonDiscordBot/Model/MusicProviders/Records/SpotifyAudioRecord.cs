@@ -15,10 +15,11 @@ public class SpotifyAudioRecord : AudioQueueRecord
     private readonly ISpotifyDownApi _spotifyDownApi;
     
     public SpotifyAudioRecord(
-        YoutubeClient youtubeApi, ISpotifyDownApi spotifyDownApi, string trackId, string author, string title, 
+        YoutubeClient youtubeApi, ISpotifyDownApi spotifyDownApi, string trackId, 
+        MusicCollectionMetadata metadata, string author, string title, 
         Func<Task<string?>> audioThumbnailUriFactory, 
         TimeSpan duration, string? publicUrl) 
-        : base(MusicProvider.Spotify, author, title, audioThumbnailUriFactory, duration, publicUrl)
+        : base(MusicProvider.Spotify, metadata, author, title, audioThumbnailUriFactory, duration, publicUrl)
     {
         _trackId = trackId;
         _youtubeApi = youtubeApi;

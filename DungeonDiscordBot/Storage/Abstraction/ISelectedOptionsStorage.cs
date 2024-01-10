@@ -15,7 +15,7 @@ public interface ISelectedOptionsStorage
     
     /// <summary>
     /// Stores the selected option as a value
-    /// of the specific /favoriteCollections list message with ID as a key. 
+    /// of the specific /favorite list message with ID as a key. 
     /// </summary>
-    ConcurrentDictionary<ulong, string> FavoritesMessageSelectedOptions { get; }
+    ConcurrentDictionary<ulong, string> FavoritesMessage { get; }
 }
