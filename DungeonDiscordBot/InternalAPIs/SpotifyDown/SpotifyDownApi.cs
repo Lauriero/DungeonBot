@@ -65,7 +65,7 @@ public class SpotifyDownApi : ISpotifyDownApi
                 headers.TryAddWithoutValidation(key, value);
             }
 
-            using (HttpResponseMessage response = await _invoker.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, token)) {
+            using (HttpResponseMessage response = await _invoker.SendAsync(request, HttpCompletionOption.ResponseContentRead, token)) {
                 if (!response.IsSuccessStatusCode) {
                     _logger.LogError("The request to {uri} was completed with a status code {code}", 
                         requestUri.AbsoluteUri, response.StatusCode);
