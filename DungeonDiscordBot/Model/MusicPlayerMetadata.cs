@@ -18,6 +18,8 @@ public class MusicPlayerMetadata
     public int PageNumber { get; set; } = 1;
 
     public bool StopRequested { get; set; } = false;
+
+    public bool ReconnectRequested { get; set; } = false;
     
     public TimeSpan Elapsed { get; set; } = TimeSpan.Zero;
     

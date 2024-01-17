@@ -7,6 +7,7 @@ using Discord.WebSocket;
 
 using DungeonDiscordBot.ButtonHandlers;
 using DungeonDiscordBot.Exceptions;
+using DungeonDiscordBot.Model;
 using DungeonDiscordBot.Model.Database;
 using DungeonDiscordBot.Model.MusicProviders;
 using DungeonDiscordBot.MusicProvidersControllers;
@@ -109,6 +110,20 @@ namespace DungeonDiscordBot.Services
                         options: new RequestOptions {
                             RetryMode = RetryMode.Retry502 | RetryMode.RetryTimeouts
                         });
+                }
+            };
+
+            _client.UserVoiceStateUpdated += async (user, oldState, newState) => {
+                if (user.Id == _client.CurrentUser.Id && oldState.VoiceChannel.Id != newState.VoiceChannel.Id) {
+                    MusicPlayerMetadata metadata = _audioService.GetMusicPlayerMetadata(newState.VoiceChannel.Guild.Id);
+                    metadata.VoiceChannel = newState.VoiceChannel;
+
+                    if (metadata.AudioClient?.ConnectionState != ConnectionState.Disconnected) {
+                        metadata.ReconnectRequested = true;
+                        return;
+                    }
+
+                    await _audioService.PlayQueueAsync(newState.VoiceChannel.Guild.Id, force: true);
                 }
             };
 

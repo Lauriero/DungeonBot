@@ -3,6 +3,7 @@ using System.Diagnostics;
 
 using Discord;
 using Discord.Audio;
+using Discord.Net;
 
 using DungeonDiscordBot.Model;
 using DungeonDiscordBot.Services.Abstraction;
@@ -67,10 +68,10 @@ public class DiscordAudioService : IDiscordAudioService
     }
 
     /// <inheritdoc /> 
-    public async Task PlayQueueAsync(ulong guildId, string reason = "")
+    public async Task PlayQueueAsync(ulong guildId, string reason = "", bool force = false)
     {
         MusicPlayerMetadata metadata = GetMusicPlayerMetadata(guildId);
-        if (metadata.State == MusicPlayerState.Playing && !metadata.StopRequested) {
+        if (metadata.State == MusicPlayerState.Playing && !metadata.StopRequested && !force) {
             await UpdateSongsQueueAsync(guildId, message: reason);
             return;
         }
@@ -165,6 +166,7 @@ public class DiscordAudioService : IDiscordAudioService
     {
         MusicPlayerMetadata metadata = GetMusicPlayerMetadata(guildId);
         if (metadata.State is MusicPlayerState.Stopped or MusicPlayerState.Paused || metadata.StopRequested) {
+            _logger.LogInformation("Requested to stop music player that is already stopped in guild {id}", guildId);
             return;
         }
         
@@ -178,8 +180,15 @@ public class DiscordAudioService : IDiscordAudioService
             metadata.PlayerCancellationTokenSource = null;
         }
 
-        await metadata.PlayerStoppedCompletionSource.Task;
-        metadata.ElapsedTimer = null;
+        if (await Task.WhenAny(metadata.PlayerStoppedCompletionSource.Task, Task.Delay(5000)) 
+            == metadata.PlayerStoppedCompletionSource.Task) {
+            metadata.ElapsedTimer = null;
+        } else {
+            _logger.LogInformation("Timeout to stop the player exceeded in guild {id}", guildId);
+            
+            metadata.State = MusicPlayerState.Paused;
+            await ClearQueue(guildId);
+        }
     }
     
     private async Task StopPlayerAsync(ulong guildId)
@@ -191,17 +200,11 @@ public class DiscordAudioService : IDiscordAudioService
 
         // Stopping player gracefully, waiting for it to finish all processes
         if (metadata.State == MusicPlayerState.Playing) {
-            metadata.PlayerStoppedCompletionSource = new TaskCompletionSource();
-            metadata.StopRequested = true;
+            await PausePlayerAsync(guildId);
+        }
 
-            CancellationTokenSource? cts = metadata.PlayerCancellationTokenSource;
-            if (cts is not null) {
-                cts.Cancel();
-                cts.Dispose();
-                metadata.PlayerCancellationTokenSource = null;
-            }
-
-            await metadata.PlayerStoppedCompletionSource.Task;
+        if (metadata.State == MusicPlayerState.Stopped) {
+            return;
         }
         
         // Reset metadatas and queue
@@ -275,6 +278,17 @@ public class DiscordAudioService : IDiscordAudioService
         }
         
         IAudioClient client = await metadata.VoiceChannel.ConnectAsync(selfDeaf: true);
+        client.Disconnected += async _ => {
+            if (metadata.ReconnectRequested) {
+                metadata.ReconnectRequested = false;
+                if (metadata.State != MusicPlayerState.Stopped) {
+                    await Task.Delay(1000);
+                    await PlayQueueAsync(guildId, force: true);
+                    client.Dispose();
+                }
+            }
+        };
+        
         metadata.AudioClient = client;
         return client;
     }
@@ -337,22 +351,45 @@ public class DiscordAudioService : IDiscordAudioService
                     TimeSpan.FromSeconds(record.Duration.TotalSeconds / _UIService.ProgressBarsCount)); // Bars count
 
                 watch.Start();
-                using (Process ffmpeg = CreateProcess(record.AudioUrl, metadata.Elapsed))
-                await using (Stream output = ffmpeg.StandardOutput.BaseStream)
-                await using (AudioOutStream? discord = metadata.AudioClient!.CreatePCMStream(AudioApplication.Mixed)) {
-                    try {
-                        await output.CopyToAsync(discord, token);
-                    } catch (OperationCanceledException) {
-                    } finally {
-                        watch.Stop();
-                        if (metadata.ElapsedTimer is not null) {
-                            await metadata.ElapsedTimer.DisposeAsync();
-                            metadata.ElapsedTimer = null;
+
+                if (metadata.Elapsed > record.Duration) {
+                    if (metadata.RepeatMode == RepeatMode.NoRepeat) {
+                        metadata.PreviousTracks.Push(record);
+                        if (!metadata.Queue.TryDequeue(out AudioQueueRecord? _)) {
+                            throw new InvalidOperationException("Error dequeuing audio from the queue.");
+                        }
+                    }
+                }
+
+                if (metadata.Elapsed < record.Duration) {
+                    using (Process ffmpeg = CreateProcess(record.AudioUrl, metadata.Elapsed))
+                    await using (Stream output = ffmpeg.StandardOutput.BaseStream)
+                    await using (AudioOutStream? discord = metadata.AudioClient!.CreatePCMStream(AudioApplication.Mixed)) {
+                        bool internalStopFlag = false;
+                        try {
+                            await output.CopyToAsync(discord, token);
+                        } catch (OperationCanceledException) {
+                        } finally {
+                            watch.Stop();
+                            if (metadata.ElapsedTimer is not null) {
+                                await metadata.ElapsedTimer.DisposeAsync();
+                                metadata.ElapsedTimer = null;
+                            }
+
+                            if (metadata.AudioClient.ConnectionState == ConnectionState.Connected) {
+                                await discord.FlushAsync();
+                            } else {
+                                metadata.Elapsed = elapsedBeforeStart + watch.Elapsed;
+                                internalStopFlag = true;
+                            }
+                            
+                            if (!ffmpeg.HasExited) {
+                                ffmpeg.Kill(true);
+                            }
                         }
 
-                        await discord.FlushAsync();
-                        if (!ffmpeg.HasExited) {
-                            ffmpeg.Kill(true);
+                        if (internalStopFlag) {
+                            return;
                         }
                     }
                 }
@@ -361,7 +398,10 @@ public class DiscordAudioService : IDiscordAudioService
                     if (metadata.StopRequested) {
                         metadata.State = MusicPlayerState.Paused;
                         metadata.StopRequested = false;
-                        metadata.PlayerStoppedCompletionSource?.SetResult();
+
+                        if (metadata.PlayerStoppedCompletionSource is not null && !metadata.PlayerStoppedCompletionSource.Task.IsCompleted) {
+                            metadata.PlayerStoppedCompletionSource?.SetResult();
+                        }
 
                         return;
                     }
@@ -391,6 +431,7 @@ public class DiscordAudioService : IDiscordAudioService
                 _logger.LogDebug(e, "Error while playing the track: ");
                 
                 metadata.State = MusicPlayerState.Paused;
+                metadata.PlayerStoppedCompletionSource?.SetResult();
                 if (!metadata.Queue.TryDequeue(out AudioQueueRecord? _)) {
                     throw new InvalidOperationException("Error dequeuing audio from the queue.");
                 }
@@ -413,8 +454,8 @@ public class DiscordAudioService : IDiscordAudioService
             FileName = _settings.FFMpegExecutable,
             Arguments = $"-hide_banner -err_detect ignore_err -ignore_unknown " +
                         $"-reconnect 1 -reconnect_streamed 0 -reconnect_delay_max 5 " +
-                        $"-re -i \"{path}\" -ac 2 -f s16le " +
-                        $"-ss {startTime:hh\\:mm\\:ss} -ar 48000 pipe:1",
+                        $"-re -ss {startTime:hh\\:mm\\:ss} -i \"{path}\" -ac 2 -f s16le " +
+                        $"-ar 48000 pipe:1",
             UseShellExecute = false,
             RedirectStandardOutput = true
         });

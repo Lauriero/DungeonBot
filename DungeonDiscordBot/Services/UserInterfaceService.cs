@@ -17,6 +17,8 @@ using DungeonDiscordBot.Services.Abstraction;
 using DungeonDiscordBot.Storage.Abstraction;
 using DungeonDiscordBot.Utilities;
 
+using Microsoft.Extensions.Logging;
+
 namespace DungeonDiscordBot.Services;
 
 public class UserInterfaceService : IUserInterfaceService
@@ -25,10 +27,12 @@ public class UserInterfaceService : IUserInterfaceService
 
     private readonly II18nService _i18n;
     private readonly IGuildsStorage _dataStorage;
+    private readonly ILogger<UserInterfaceService> _logger;
 
-    public UserInterfaceService(IGuildsStorage dataStorage, II18nService i18n)
+    public UserInterfaceService(IGuildsStorage dataStorage, II18nService i18n, ILogger<UserInterfaceService> logger)
     {
         _i18n = i18n;
+        _logger = logger;
         _dataStorage = dataStorage;
     }
     
@@ -63,9 +67,11 @@ public class UserInterfaceService : IUserInterfaceService
             }, new RequestOptions {
                 CancelToken = token,
                 RetryMode = RetryMode.Retry502 | RetryMode.RetryTimeouts
-            }); 
-        } catch (OperationCanceledException) {
-        } catch (TimeoutException) { }
+            });
+        } catch (Exception e) {
+            _logger.LogError("Error while updating songs message for the guild {gId}", guildId);
+            _logger.LogDebug(e, "Error: ");
+        }
     }
     
     public MessageProperties GenerateTrackHistoryMessage(ConcurrentStack<AudioQueueRecord> previousTracks, 
