@@ -46,9 +46,7 @@ public class YandexMusicProviderController : BaseMusicProviderController
     
     public override async Task InitializeAsync()
     {
-        _logger.LogInformation("Initializing YAMusic provider...");
         await _api.User.AuthorizeAsync(_apiAuth, _settings.YMToken);
-        _logger.LogInformation("YAMusic provider initialized");
     }
 
     public override async Task<MusicCollectionResponse> GetAudiosFromLinkAsync(Uri link, int count)

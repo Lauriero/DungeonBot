@@ -20,6 +20,9 @@ using DungeonDiscordBot.Utilities;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
+using Serilog;
+using Serilog.Events;
+
 namespace DungeonDiscordBot.Services
 {
     public class DiscordBotService : IDiscordBotService
@@ -54,119 +57,128 @@ namespace DungeonDiscordBot.Services
                     new KeyValuePair<string, IButtonHandler>(handler.Prefix, handler)));
         }
 
-
         public async Task InitializeAsync()
         {
-            _logger.LogInformation("Initializing Discord service...");
-
-            _client.JoinedGuild += async guild => {
-                await _dataStorage.RegisterGuild(guild.Id, guild.Name);
-                _logger.LogInformation($"Bot has joined a new guild {guild.Name} with id - {guild.Id}");
-            };
-
-            _client.LeftGuild += async guild => {
-                await _dataStorage.UnregisterGuild(guild.Id);
-                _logger.LogInformation($"Bot has left a guild {guild.Name} with id - {guild.Id}");
-            };
-
-            _client.UserJoined += async user => {
-                _logger.LogInformation($"User {user.Username}@{user.Id} has joined the guild {user.Guild.Name}@{user.Guild.Id}");
-                Guild guild = await _dataStorage.GetGuildAsync(user.Guild.Id);
-                if (guild.WelcomeChannelId is not null) {
-                    IChannel channel = await _client.GetChannelAsync(guild.WelcomeChannelId.Value);
-                    if (channel is not SocketTextChannel textChannel) {
-                        _logger.LogError("Attempt to send a new user message has failed " +
-                                         "because registered channel was not a text channel");
-                        return;
-                    }
-
-                    MessageProperties properties = _UIService.GenerateNewUserMessage(user.Guild.CurrentUser, user);
-                    await textChannel.SendMessageAsync(
-                        text: properties.Content.GetValueOrDefault(),
-                        embed: properties.Embed.GetValueOrDefault(),
-                        components: properties.Components.GetValueOrDefault(),
-                        options: new RequestOptions {
-                            RetryMode = RetryMode.Retry502 | RetryMode.RetryTimeouts
-                        });
-                }
-            };
-
-            _client.UserLeft += async (guild, user) => {
-                _logger.LogInformation($"User {user.Username}@{user.Id} has left the guild {guild.Name}@{guild.Id}");
-                Guild guildData = await _dataStorage.GetGuildAsync(guild.Id);
-                if (guildData.RunawayChannelId is not null) {
-                    IChannel channel = await _client.GetChannelAsync(guildData.RunawayChannelId.Value);
-                    if (channel is not SocketTextChannel textChannel) {
-                        _logger.LogError("Attempt to send a left user message has failed " +
-                                         "because registered channel was not a text channel");
-                        return;
-                    }
-
-                    MessageProperties properties = _UIService.GenerateLeftUserMessage(guild.CurrentUser, user);
-                    await textChannel.SendMessageAsync(
-                        text: properties.Content.GetValueOrDefault(),
-                        embed: properties.Embed.GetValueOrDefault(),
-                        components: properties.Components.GetValueOrDefault(),
-                        options: new RequestOptions {
-                            RetryMode = RetryMode.Retry502 | RetryMode.RetryTimeouts
-                        });
-                }
-            };
-
-            _client.UserVoiceStateUpdated += async (user, oldState, newState) => {
-                if (user.Id == _client.CurrentUser.Id && oldState.VoiceChannel.Id != newState.VoiceChannel.Id) {
-                    MusicPlayerMetadata metadata = _audioService.GetMusicPlayerMetadata(newState.VoiceChannel.Guild.Id);
-                    metadata.VoiceChannel = newState.VoiceChannel;
-
-                    if (metadata.AudioClient?.ConnectionState != ConnectionState.Disconnected) {
-                        metadata.ReconnectRequested = true;
-                        return;
-                    }
-
-                    await _audioService.PlayQueueAsync(newState.VoiceChannel.Guild.Id, force: true);
-                }
-            };
-
-            _client.InteractionCreated += async interaction => {
-                IResult result = await _interactions.ExecuteCommandAsync(
-                    new SocketInteractionContext(_client, interaction), _serviceProvider);
-
-                if (result.IsSuccess) {
-                    return;
-                }
-
-                throw new InteractionCommandException(interaction, (InteractionCommandError)result.Error!, 
-                    result.ErrorReason);
-            };
-
+            _client.Log += OnClientLog;
+            _client.JoinedGuild += OnClientJoinedGuild;
+            _client.LeftGuild += OnClientLeftGuild;
+            _client.UserJoined += OnUserJoined;
+            _client.UserLeft += OnUserLeft;
+            _client.UserVoiceStateUpdated += OnUserVoiceStateUpdated;
+            _client.InteractionCreated += OnClientInteractionCreated;
             _client.ButtonExecuted += ClientOnButtonExecuted;
-            
-            
-            _client.Ready += async () => {
-                //await _interactions.RegisterCommandsGloballyAsync();
-                foreach (Guild guild in await _dataStorage.GetMusicGuildsAsync()) {
-                    await _interactions.RegisterCommandsToGuildAsync(guild.Id);
-                    
-                    SocketTextChannel musicChannel = await GetChannelAsync(guild.MusicChannelId!.Value);
-                    _dataStorage.RegisterMusicChannelImpl(guild.Id, musicChannel);
-
-                    _audioService.CreateMusicPlayerMetadata(guild.Id);
-                    await _audioService.UpdateSongsQueueAsync(guild.Id, "Queue was cleared");
-                }
-                
-                _logger.LogInformation("Bot is ready");
-            };
+            _client.Ready += OnClientReady;
 
             _interactions.AddTypeConverter<MusicProvider>(new SmartEnumTypeConverter<MusicProvider, BaseMusicProviderController>());
             await _interactions.AddModulesAsync(Assembly.GetEntryAssembly(), _serviceProvider);
 
             await _client.LoginAsync(TokenType.Bot, _settings.DiscordBotToken);
             await _client.StartAsync();
-            
-
-            _logger.LogInformation("Discord service initialized");
         }
 
+        private async Task OnClientReady()
+        {
+            //await _interactions.RegisterCommandsGloballyAsync();
+            foreach (Guild guild in await _dataStorage.GetMusicGuildsAsync()) {
+                await _interactions.RegisterCommandsToGuildAsync(guild.Id);
+
+                SocketTextChannel musicChannel = await GetChannelAsync(guild.MusicChannelId!.Value);
+                _dataStorage.RegisterMusicChannelImpl(guild.Id, musicChannel);
+
+                _audioService.CreateMusicPlayerMetadata(guild.Id);
+                await _audioService.UpdateSongsQueueAsync(guild.Id, "Queue was cleared");
+            }
+
+            _logger.LogInformation("Bot is ready");
+        }
+
+        private async Task OnClientInteractionCreated(SocketInteraction interaction)
+        {
+            IResult result = await _interactions.ExecuteCommandAsync(new SocketInteractionContext(_client, interaction), _serviceProvider);
+
+            if (result.IsSuccess) {
+                return;
+            }
+
+            throw new InteractionCommandException(interaction, (InteractionCommandError) result.Error!, result.ErrorReason);
+        }
+
+        private async Task OnUserVoiceStateUpdated(SocketUser user, SocketVoiceState oldState, SocketVoiceState newState)
+        {
+            if (user.Id == _client.CurrentUser.Id && oldState.VoiceChannel.Id != newState.VoiceChannel.Id) {
+                MusicPlayerMetadata metadata = _audioService.GetMusicPlayerMetadata(newState.VoiceChannel.Guild.Id);
+                metadata.VoiceChannel = newState.VoiceChannel;
+
+                if (metadata.AudioClient?.ConnectionState != ConnectionState.Disconnected) {
+                    metadata.ReconnectRequested = true;
+
+                    return;
+                }
+
+                await _audioService.PlayQueueAsync(newState.VoiceChannel.Guild.Id, force: true);
+            }
+        }
+
+        private async Task OnUserLeft(SocketGuild guild, SocketUser user)
+        {
+            _logger.LogInformation($"User {user.Username}@{user.Id} has left the guild {guild.Name}@{guild.Id}");
+            Guild guildData = await _dataStorage.GetGuildAsync(guild.Id);
+            if (guildData.RunawayChannelId is not null) {
+                IChannel channel = await _client.GetChannelAsync(guildData.RunawayChannelId.Value);
+                if (channel is not SocketTextChannel textChannel) {
+                    _logger.LogError("Attempt to send a left user message has failed " + "because registered channel was not a text channel");
+
+                    return;
+                }
+
+                MessageProperties properties = _UIService.GenerateLeftUserMessage(guild.CurrentUser, user);
+                await textChannel.SendMessageAsync(text: properties.Content.GetValueOrDefault(), embed: properties.Embed.GetValueOrDefault(), components: properties.Components.GetValueOrDefault(), options: new RequestOptions {RetryMode = RetryMode.Retry502 | RetryMode.RetryTimeouts});
+            }
+        }
+
+        private async Task OnUserJoined(SocketGuildUser user)
+        {
+            _logger.LogInformation($"User {user.Username}@{user.Id} has joined the guild {user.Guild.Name}@{user.Guild.Id}");
+            Guild guild = await _dataStorage.GetGuildAsync(user.Guild.Id);
+            if (guild.WelcomeChannelId is not null) {
+                IChannel channel = await _client.GetChannelAsync(guild.WelcomeChannelId.Value);
+                if (channel is not SocketTextChannel textChannel) {
+                    _logger.LogError("Attempt to send a new user message has failed " + "because registered channel was not a text channel");
+
+                    return;
+                }
+
+                MessageProperties properties = _UIService.GenerateNewUserMessage(user.Guild.CurrentUser, user);
+                await textChannel.SendMessageAsync(text: properties.Content.GetValueOrDefault(), embed: properties.Embed.GetValueOrDefault(), components: properties.Components.GetValueOrDefault(), options: new RequestOptions {RetryMode = RetryMode.Retry502 | RetryMode.RetryTimeouts});
+            }
+        }
+
+        private async Task OnClientLeftGuild(SocketGuild guild)
+        {
+            await _dataStorage.UnregisterGuild(guild.Id);
+            _logger.LogInformation($"Bot has left a guild {guild.Name} with id - {guild.Id}");
+        }
+
+        private async Task OnClientJoinedGuild(SocketGuild guild)
+        {
+            await _dataStorage.RegisterGuild(guild.Id, guild.Name);
+            _logger.LogInformation($"Bot has joined a new guild {guild.Name} with id - {guild.Id}");
+        }
+
+        private async Task OnClientLog(LogMessage m)
+        {
+            var severity = m.Severity switch {
+                LogSeverity.Critical => LogLevel.Critical,
+                LogSeverity.Error => LogLevel.Error,
+                LogSeverity.Warning => LogLevel.Warning,
+                LogSeverity.Info => LogLevel.Information,
+                LogSeverity.Verbose => LogLevel.Trace,
+                LogSeverity.Debug => LogLevel.Debug,
+                _ => LogLevel.Information
+            };
+            _logger.Log(severity, m.Exception, "[{Source}] {Message}", m.Source, m.Message);
+            await Task.CompletedTask;
+        }
 
         public async Task EnsureBotIsReady(SocketInteraction interaction)
         {

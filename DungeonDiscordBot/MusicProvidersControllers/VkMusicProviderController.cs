@@ -50,14 +50,10 @@ public class VkMusicProviderController : BaseMusicProviderController
     
     public override async Task InitializeAsync()
     {
-        _logger.LogInformation("Initializing VKMusic provider...");
-
         await _audioApi.AuthAsync(_settings.VKLogin, _settings.VKPassword, () => {
             Console.Write("Insert code: ");
             return Console.ReadLine()!;
         });
-        
-        _logger.LogInformation("VKMusic provider initialized");
     }
 
     public override async Task<MusicCollectionResponse> GetAudiosFromLinkAsync(Uri link, int count)

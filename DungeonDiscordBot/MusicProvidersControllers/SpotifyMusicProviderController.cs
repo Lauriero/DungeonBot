@@ -48,15 +48,11 @@ public class SpotifyMusicProviderController : BaseMusicProviderController
     
     public override async Task InitializeAsync()
     {
-        _logger.LogInformation("Initializing Spotify music provider...");
-
         FullTrack track = await _spotifyApi.Tracks.Get("6XcoiOYiNbIxzpt8WRxq8Z");
         if (track.Name != "Du hast") {
             _logger.LogError("Spotify API check has failed");
             throw new Exception("Spotify API check has failed");
         }
-        
-        _logger.LogInformation("Spotify music provider initialized");
     }
 
     public override async Task<MusicCollectionResponse> GetAudiosFromLinkAsync(Uri link, int count)
