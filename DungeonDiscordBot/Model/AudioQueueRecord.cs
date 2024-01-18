@@ -1,22 +1,56 @@
-﻿using System;
+﻿using System.Diagnostics.CodeAnalysis;
+
+using DungeonDiscordBot.Model.MusicProviders;
+using DungeonDiscordBot.Utilities;
 
 namespace DungeonDiscordBot.Model;
 
-public class AudioQueueRecord
+public abstract class AudioQueueRecord
 {
+    /// <summary>
+    /// Provider that has fetched this audio.
+    /// </summary>
+    public MusicProvider Provider { get; }
+    
+    /// <summary>
+    /// Contains data about the collection this track belongs to.
+    /// </summary>
+    public MusicCollectionMetadata Collection { get; }
+    
+    /// <summary>
+    /// Uri to the audio in the public resource.
+    /// </summary>
+    public string? PublicUrl { get; }
+
     public string Author { get; }
     
     public string Title { get; }
     
-    public Uri AudioUri { get; }
+    public TimeSpan Duration { get; }
     
-    public string? AudioThumbnailUrl { get; }
-
-    public AudioQueueRecord(string author, string title, Uri audioUri, string? audioThumbnailUrl)
+    /// <summary>
+    /// Contains the last modified value of the url to the audio track.
+    /// Or null if the value has never been modified and needs to be updated.
+    /// </summary>
+    public string? AudioUrl { get; protected set; }
+    
+    public AsyncLazy<string?> AudioThumbnailUrl { get; }
+    
+    protected AudioQueueRecord(MusicProvider provider, MusicCollectionMetadata metadata, string author, string title,
+        Func<Task<string?>> audioThumbnailUriFactory, TimeSpan duration, string? publicUrl)
     {
+        Provider = provider;
+        Collection = metadata;
         Author = author;
         Title = title;
-        AudioUri = audioUri;
-        AudioThumbnailUrl = audioThumbnailUrl;
+        Duration = duration;
+        AudioThumbnailUrl = new AsyncLazy<string?>(audioThumbnailUriFactory);
+        PublicUrl = publicUrl;
     }
+    
+    /// <summary>
+    /// Updates the value of the <see cref="AudioUrl"/> property.
+    /// </summary>
+    [MemberNotNull(nameof(AudioUrl))]
+    public abstract Task UpdateAudioUrlAsync();
 }

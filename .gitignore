@@ -17,7 +17,6 @@
 mono_crash.*
 
 # Build results
-[Dd]ebug/
 [Dd]ebugPublic/
 [Rr]elease/
 [Rr]eleases/
@@ -421,3 +420,5 @@ fabric.properties
 .idea/caches/build_file_checksums.ser
 
 upgrade-assistant.clef
+
+**/appsettings.*.json

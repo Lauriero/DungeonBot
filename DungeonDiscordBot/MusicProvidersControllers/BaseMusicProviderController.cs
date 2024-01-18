@@ -1,54 +1,47 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Threading.Tasks;
-
-using DungeonDiscordBot.Model;
+﻿using DungeonDiscordBot.Model.MusicProviders;
+using DungeonDiscordBot.Model.MusicProviders.Search;
+using DungeonDiscordBot.Services.Abstraction;
 
 namespace DungeonDiscordBot.MusicProvidersControllers;
 
-public abstract class BaseMusicProviderController : IComparable<BaseMusicProviderController>, IEquatable<BaseMusicProviderController>
+public abstract class BaseMusicProviderController : 
+    IComparable<BaseMusicProviderController>, 
+    IEquatable<BaseMusicProviderController>,
+    IRequireInitiationService
 {
+    public static int MaxSearchResultsCount = 25;
+
     public event Action<int>? AudiosProcessingStarted;
     public event Action<int, int>? AudiosProcessingProgressed;
     public event Action<int>? AudiosProcessed;
     
+    public abstract string DisplayName { get; }
     public abstract string LinksDomainName { get; }
+    public abstract string LogoEmojiId { get; }
+    public abstract string LogoUri { get; }
+    public abstract string SupportedLinks { get; }
     
-    private Type _providerType;
-
-    protected BaseMusicProviderController()
+    public int InitializationPriority => 0;
+    
+    public Type ProviderType { get; protected set; }
+    
+    protected BaseMusicProviderController(Type? destinationType = null)
     {
-        _providerType = this.GetType();
+        ProviderType = destinationType ?? this.GetType();
     }
 
-    /// <summary>
-    /// Initializes the controller.
-    /// </summary>
-    /// <returns></returns>
-    public abstract Task Init();
+    public abstract Task InitializeAsync();
 
     /// <summary>
     /// Gets audios by a url.
     /// </summary>
-    public abstract Task<IEnumerable<AudioQueueRecord>> GetAudiosFromLink(Uri link);
+    public abstract Task<MusicCollectionResponse> GetAudiosFromLinkAsync(Uri link, int count);
 
-    public int CompareTo(BaseMusicProviderController? other)
-    {
-        if (other is null) {
-            return 1;
-        }
-
-        return this._providerType != other._providerType ? 1 : 0;
-    }
-
-    public bool Equals(BaseMusicProviderController? other)
-    {
-        if (other is null) {
-            return false;
-        }
-
-        return this._providerType != other._providerType;
-    }
+    /// <summary>
+    /// Perform a search by a query
+    /// and return a list of found entities.
+    /// </summary>
+    public abstract Task<MusicSearchResult> SearchAsync(string query, MusicCollectionType targetCollectionType, int? count = null);
 
     protected void OnAudiosProcessingStarted(int audiosToProcess)
     {
@@ -64,4 +57,27 @@ public abstract class BaseMusicProviderController : IComparable<BaseMusicProvide
     {
         AudiosProcessed?.Invoke(audiosAdded);
     }
+    
+    #region Implementations
+
+    public int CompareTo(BaseMusicProviderController? other)
+    {
+        if (other is null) {
+            return 1;
+        }
+
+        return this.ProviderType != other.ProviderType ? 1 : 0;
+    }
+
+    public bool Equals(BaseMusicProviderController? other)
+    {
+        if (other is null) {
+            return false;
+        }
+
+        return this.ProviderType != other.ProviderType;
+    }
+    
+    #endregion
+    
 }

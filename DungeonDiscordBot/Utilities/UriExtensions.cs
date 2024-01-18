@@ -1,6 +1,4 @@
-﻿using System;
-
-using DungeonDiscordBot.Model;
+﻿using DungeonDiscordBot.Model.MusicProviders;
 using DungeonDiscordBot.MusicProvidersControllers;
 
 namespace DungeonDiscordBot.Utilities;

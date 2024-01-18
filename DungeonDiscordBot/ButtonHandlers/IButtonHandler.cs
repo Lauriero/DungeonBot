@@ -1,6 +1,4 @@
-﻿using System.Threading.Tasks;
-
-using Discord.WebSocket;
+﻿using Discord.WebSocket;
 
 namespace DungeonDiscordBot.ButtonHandlers;
 
@@ -12,5 +10,5 @@ public interface IButtonHandler
     /// </summary>
     string Prefix { get; }
     
-    Task OnButtonExecuted(SocketMessageComponent component);
+    Task OnButtonExecuted(SocketMessageComponent component, SocketGuild guild);
 }
